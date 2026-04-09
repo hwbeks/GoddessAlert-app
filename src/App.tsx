@@ -132,19 +132,16 @@ const css = {
   },
 };
 
-function daysUntil(dateStr) {
-  const today = new Date();
-  const target = new Date(dateStr + "T00:00:00");
+function daysUntil(dateStr: string): number {
+  const today: Date = new Date();
+  const target: Date = new Date(dateStr + "T00:00:00");
   target.setFullYear(today.getFullYear());
-  const days = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
   if (
-    days === 0 ||
-    (target.getMonth() === today.getMonth() &&
-      target.getDate() === today.getDate())
-  )
-    return 0;
+    target.getMonth() === today.getMonth() &&
+    target.getDate() === today.getDate()
+  ) return 0;
   if (target < today) target.setFullYear(today.getFullYear() + 1);
-  return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 // ─── SCREENS ───────────────────────────────────────────────
