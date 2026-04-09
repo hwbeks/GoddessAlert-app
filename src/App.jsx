@@ -250,25 +250,9 @@ function LoginScreen({ onNext }) {
             We'll send you a one-click login link. No password needed.
             <br />
             By continuing you agree to our{" "}
-            <span
-              style={{
-                color: T.accent,
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              Terms of Use
-            </span>{" "}
+           <a href="https://goddessalert.com/terms.html" style={{ color: T.accent, textDecoration: "underline" }} target="_blank" rel="noreferrer">Terms of Use</a>{" "}
             and{" "}
-            <span
-              style={{
-                color: T.accent,
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              Privacy Policy
-            </span>
+            <a href="https://goddessalert.com/privacy.html" style={{ color: T.accent, textDecoration: "underline" }} target="_blank" rel="noreferrer">Privacy Policy</a>
             .
           </div>
         </>
