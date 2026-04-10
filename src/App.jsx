@@ -631,10 +631,10 @@ function MainApp({ partnerData }) {
     healthScore >= 70 ? T.green : healthScore >= 40 ? T.accent : T.red;
 
   async function handleUpgrade(plan) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const userEmail = user?.email || "";
 
     const priceId =
       plan === "yearly"
@@ -645,7 +645,7 @@ function MainApp({ partnerData }) {
       body: {
         action: "create-checkout",
         priceId: priceId,
-        email: user.email,
+        email: userEmail,
         successUrl: window.location.origin + "?upgraded=true",
         cancelUrl: window.location.origin,
       },
