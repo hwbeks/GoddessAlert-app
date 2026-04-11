@@ -714,12 +714,26 @@ const [showTheCode, setShowTheCode] = useState(false);
       console.error("Stripe error:", error);
     }
   }
-  function addEvent() {
-    if (!newEvent.name || !newEvent.date) return;
-    setEvents((e) => [...e, { ...newEvent, id: Date.now(), emoji: "📅" }]);
-    setNewEvent({ name: "", date: "", daysBefore: 7 });
-    setShowAddModal(false);
+  async function addEvent() {
+  if (!newEvent.name || !newEvent.date) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data } = await supabase
+      .from("events")
+      .insert({
+        user_id: user.id,
+        name: newEvent.name,
+        date: newEvent.date,
+        days_before: newEvent.daysBefore,
+        emoji: "📅",
+      })
+      .select()
+      .single();
+    if (data) setEvents((e) => [...e, data]);
   }
+  setNewEvent({ name: "", date: "", daysBefore: 7 });
+  setShowAddModal(false);
+}
 
   async function addReminder() {
     if (!newReminder.title || !newReminder.date || !newReminder.time) return;
