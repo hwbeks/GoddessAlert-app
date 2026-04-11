@@ -504,7 +504,8 @@ function MainApp({ partnerData }) {
 
   // ── all hooks up front ──
   const [tab, setTab] = useState("home");
-  const [score, setScore] = useState(62);
+ const [score, setScore] = useState(50);
+const [scoreLoaded, setScoreLoaded] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [showAddReminder, setShowAddReminder] = useState(false);
@@ -538,6 +539,61 @@ function MainApp({ partnerData }) {
     }
     loadEvents();
   }, []);
+  useEffect(() => {
+  async function calculateScore() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    let score = 50;
+
+    // Weekly check-ins
+    const { data: checkins } = await supabase
+      .from("health_scores")
+      .select("score")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(4);
+
+    if (checkins) {
+      for (const c of checkins) {
+        if (c.score >= 4) score += 10;
+        else if (c.score === 3) score += 5;
+        else if (c.score === 2) score += 0;
+        else if (c.score <= 1) score -= 5;
+      }
+    }
+
+    // Reminders
+    const { data: reminders } = await supabase
+      .from("reminders")
+      .select("done")
+      .eq("user_id", user.id);
+
+    if (reminders) {
+      for (const r of reminders) {
+        if (r.done) score += 5;
+        else score -= 3;
+      }
+    }
+
+    // Tip ratings
+    const { data: ratings } = await supabase
+      .from("tip_ratings")
+      .select("rating")
+      .eq("user_id", user.id);
+
+    if (ratings) {
+      for (const r of ratings) {
+        if (r.rating === 1) score += 2;
+      }
+    }
+
+    score = Math.max(0, Math.min(100, score));
+    setScore(score);
+    setScoreLoaded(true);
+  }
+  calculateScore();
+}, []);
   const [reminders, setReminders] = useState([]);
 
   useEffect(() => {
