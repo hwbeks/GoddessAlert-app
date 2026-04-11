@@ -1849,7 +1849,7 @@ const [showTheCode, setShowTheCode] = useState(false);
               ))}
             </div>
           ) : (
-            <div style={{ textAlign: "center", paddingTop: 24, paddingBottom: 8 }}>
+        <div style={{ textAlign: "center", paddingTop: 24, paddingBottom: 80 }}>
               <span
                 onClick={() => setShowTheCode(true)}
                 style={{ fontSize: 10, color: "#444444", cursor: "pointer", letterSpacing: 1 }}
