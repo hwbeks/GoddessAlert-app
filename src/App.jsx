@@ -688,11 +688,16 @@ function MainApp({ partnerData }) {
     setShowAddReminder(false);
   }
 
-  function toggleReminder(id) {
-    setReminders((r) =>
-      r.map((x) => (x.id === id ? { ...x, done: !x.done } : x))
-    );
-  }
+  async function toggleReminder(id) {
+  const newDone = !reminders.find((x) => x.id === id)?.done;
+  setReminders((r) =>
+    r.map((x) => (x.id === id ? { ...x, done: newDone } : x))
+  );
+  await supabase
+    .from("reminders")
+    .update({ done: newDone })
+    .eq("id", id);
+}
 
   return (
     <div style={{ width: "100%", maxWidth: 420, paddingBottom: 80 }}>
