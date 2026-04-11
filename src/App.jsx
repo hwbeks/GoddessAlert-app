@@ -718,17 +718,19 @@ const [showTheCode, setShowTheCode] = useState(false);
   if (!newEvent.name || !newEvent.date) return;
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("events")
       .insert({
         user_id: user.id,
         name: newEvent.name,
         date: newEvent.date,
-        days_before: newEvent.daysBefore,
+        days_before: newEvent.daysBefore || 7,
         emoji: "📅",
+        repeat_yearly: true,
       })
       .select()
       .single();
+    if (error) console.error("Event insert error:", error);
     if (data) setEvents((e) => [...e, data]);
   }
   setNewEvent({ name: "", date: "", daysBefore: 7 });
