@@ -504,7 +504,8 @@ function MainApp({ partnerData }) {
 
   // ── all hooks up front ──
   const [tab, setTab] = useState("home");
- const [score, setScore] = useState(50);
+const [currentUser, setCurrentUser] = useState(null);
+  const [score, setScore] = useState(50);
 const [scoreLoaded, setScoreLoaded] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showScoreModal, setShowScoreModal] = useState(false);
@@ -524,6 +525,11 @@ const [showTheCode, setShowTheCode] = useState(false);
 
   const [events, setEvents] = useState([]);
 
+  useEffect(() => {
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    setCurrentUser(user);
+  });
+}, []);
   useEffect(() => {
     async function loadEvents() {
       const {
@@ -716,8 +722,8 @@ const [showTheCode, setShowTheCode] = useState(false);
   }
   async function addEvent() {
   if (!newEvent.name || !newEvent.date) return;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
+  if (currentUser) {
+    const user = currentUser;
     const { data, error } = await supabase
       .from("events")
       .insert({
