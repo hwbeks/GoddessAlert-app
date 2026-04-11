@@ -1,7 +1,7 @@
 import { loadStripe } from "@stripe/stripe-js";
 
 export const stripePromise = loadStripe(
-  "pk_test_51TKHnM5ueCdcfjYzp3NyQEm2TigUrxorQZnWFis3KqP5NnqKoV5kiY49TK0DENSxTnkJF1uTdLIa9APsK73W6Q1e00yncqljC8"
+  "pk_live_51TKHnM5ueCdcfjYzTaJObKJI8vtADeEuuXhbxUUYtTzZwHhYnxbnaKXZzoIFRY8a9dq6OsBD1GzWglaKf0wttEtz00VSNkzgAI"
 );
 
 export const PRICES = {
