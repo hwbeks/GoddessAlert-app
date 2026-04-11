@@ -1939,7 +1939,7 @@ const [showTheCode, setShowTheCode] = useState(false);
           <div style={{ textAlign: "center", paddingTop: 40, paddingBottom: 24 }}>
             <span
               onClick={() => setShowTheCode(true)}
-              style={{ fontSize: 10, color: "#2a2a2a", cursor: "pointer", letterSpacing: 1 }}
+              style={{ fontSize: 10, color: "#444444", cursor: "pointer", letterSpacing: 1 }}
             >
               · · ·
             </span>
