@@ -1965,7 +1965,6 @@ const [showTheCode, setShowTheCode] = useState(false);
               </div>
             </div>
           ))}
-      </div>
 
         {/* The Code - hidden gem */}
         {showTheCode ? (
@@ -1997,7 +1996,8 @@ const [showTheCode, setShowTheCode] = useState(false);
             </span>
           </div>
         )}
-      )}
+      }}
+      </div>
 
       {/* Bottom Nav */}
       <div style={css.nav}>
