@@ -720,10 +720,10 @@ const [showTheCode, setShowTheCode] = useState(false);
       console.error("Stripe error:", error);
     }
   }
-  async function addEvent() {
+ async function addEvent() {
   if (!newEvent.name || !newEvent.date) return;
-  if (currentUser) {
-    const user = currentUser;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
     const { data, error } = await supabase
       .from("events")
       .insert({
