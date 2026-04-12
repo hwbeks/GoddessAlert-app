@@ -553,28 +553,35 @@ const [showTheCode, setShowTheCode] = useState(false);
 
     let score = 50;
 
-    // Weekly check-ins
+    // Tijdvenster: afgelopen 7 dagen
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+
+    // Weekly check-in (meest recente van afgelopen 7 dagen)
     const { data: checkins } = await supabase
       .from("health_scores")
       .select("score")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(4);
+      .gte("recorded_at", sevenDaysAgoISO)
+      .order("recorded_at", { ascending: false })
+      .limit(1);
 
-    if (checkins) {
-      for (const c of checkins) {
-        if (c.score >= 4) score += 10;
-        else if (c.score === 3) score += 5;
-        else if (c.score === 2) score += 0;
-        else if (c.score <= 1) score -= 5;
-      }
+    if (checkins && checkins.length > 0) {
+      const c = checkins[0];
+      if (c.score >= 4) score += 10;
+      else if (c.score === 3) score += 5;
+      else if (c.score === 2) score += 0;
+      else if (c.score <= 1) score -= 5;
     }
 
-    // Reminders
+    // Reminders (afgelopen 7 dagen)
     const { data: reminders } = await supabase
       .from("reminders")
-      .select("done")
-      .eq("user_id", user.id);
+      .select("done, date")
+      .eq("user_id", user.id)
+      .gte("date", sevenDaysAgoDate);
 
     if (reminders) {
       for (const r of reminders) {
@@ -583,15 +590,19 @@ const [showTheCode, setShowTheCode] = useState(false);
       }
     }
 
-    // Tip ratings
+    // Tip ratings (afgelopen 7 dagen)
     const { data: ratings } = await supabase
       .from("tip_ratings")
-      .select("rating")
-      .eq("user_id", user.id);
+      .select("rating, created_at")
+      .eq("user_id", user.id)
+      .gte("created_at", sevenDaysAgoISO);
 
     if (ratings) {
+      // Tip gemarkeerd als done: +5 per tip deze week
+      score += ratings.length * 5;
+      // Thumbs up: +2 extra per positieve rating
       for (const r of ratings) {
-        if (r.rating === 1) score += 2;
+        if (r.rating === "up") score += 2;
       }
     }
 
