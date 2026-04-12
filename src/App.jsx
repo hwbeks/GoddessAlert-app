@@ -1823,16 +1823,23 @@ const [showTheCode, setShowTheCode] = useState(false);
               {
                 label: "📄 Terms of Use",
                 sub: "Your rights and responsibilities",
+                url: "https://goddessalert.com/terms.html",
               },
-              { label: "🔒 Privacy Policy", sub: "How we handle your data" },
+              {
+                label: "🔒 Privacy Policy",
+                sub: "How we handle your data",
+                url: "https://goddessalert.com/privacy.html",
+              },
               {
                 label: "🗑️ Delete my account",
                 sub: "Permanently remove all your data",
                 color: T.red,
+                url: null,
               },
             ].map((item, i, arr) => (
               <div
                 key={i}
+                onClick={() => item.url && window.open(item.url, "_blank")}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1841,7 +1848,7 @@ const [showTheCode, setShowTheCode] = useState(false);
                   marginBottom: i < arr.length - 1 ? 14 : 0,
                   borderBottom:
                     i < arr.length - 1 ? `1px solid ${T.border}` : "none",
-                  cursor: "pointer",
+                  cursor: item.url ? "pointer" : "default",
                 }}
               >
                 <div>
