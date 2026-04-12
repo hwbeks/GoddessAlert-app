@@ -736,7 +736,7 @@ const [showTheCode, setShowTheCode] = useState(false);
       })
       .select()
       .single();
-    if (error) console.error("Event insert error:", error);
+   if (error) console.error("Event insert error v2:", error);
     if (data) setEvents((e) => [...e, data]);
   }
   setNewEvent({ name: "", date: "", daysBefore: 7 });
