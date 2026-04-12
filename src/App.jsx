@@ -712,8 +712,8 @@ const [showTheCode, setShowTheCode] = useState(false);
 
     const priceId =
       plan === "yearly"
-        ? "price_1TKHvN5ueCdcfjYzBJ6C9PQb"
-        : "price_1TKHw75ueCdcfjYzQJuatIR0";
+        ? "price_1TLThd5ueCdcfjYzCRQL6Cx8"
+        : "price_1TLTfg5ueCdcfjYzJjllByzI";
 
     const { data, error } = await supabase.functions.invoke("bright-worker", {
       body: {
