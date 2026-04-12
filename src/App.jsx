@@ -1967,7 +1967,7 @@ const [showTheCode, setShowTheCode] = useState(false);
           ))}
       </div>
 
-        {/* The Code — hidden gem */}
+        {/* The Code - hidden gem */}
         {showTheCode ? (
           <div style={{ padding: "32px 8px 16px", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: T.accent, letterSpacing: 2, marginBottom: 20, textTransform: "uppercase" }}>The Code</div>
