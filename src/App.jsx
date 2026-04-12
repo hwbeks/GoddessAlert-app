@@ -949,9 +949,17 @@ const [showTheCode, setShowTheCode] = useState(false);
                 ].map((opt) => (
                   <button
                     key={opt.val}
-                    onClick={() => {
+                    onClick={async () => {
                       setWeeklyRating(opt.val);
                       setScore((s) => Math.min(100, Math.max(0, s + opt.pts)));
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user) {
+                        const scoreValue = opt.val === "great" ? 4 : opt.val === "good" ? 3 : opt.val === "ok" ? 2 : 1;
+                        await supabase.from("health_scores").insert({
+                          user_id: user.id,
+                          score: scoreValue,
+                        });
+                      }
                     }}
                     style={{
                       flex: 1,
@@ -1085,7 +1093,7 @@ const [showTheCode, setShowTheCode] = useState(false);
             )}
 
           {/* STATE 2: Done — show crossed-out tip + rating prompt */}
-          {gestureDone && !showRatingThanks && (
+          {gestureDone && !showRatingThanks && currentTip && (
             <div
               style={{
                 background: "linear-gradient(135deg, #1a1600, #161616)",
