@@ -1879,7 +1879,10 @@ const [showTheCode, setShowTheCode] = useState(false);
          {/* The Code trigger */}
           {showTheCode ? (
             <div style={{ padding: "32px 8px 16px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: T.accent, letterSpacing: 2, marginBottom: 20, textTransform: "uppercase" }}>The Code</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: T.accent, letterSpacing: 2, textTransform: "uppercase" }}>The Code</div>
+                <span onClick={() => setShowTheCode(false)} style={{ fontSize: 11, color: T.muted, cursor: "pointer", letterSpacing: 1 }}>✕ close</span>
+              </div>
               {[
                 ["I", "She talks to connect, not to complain.", "When she shares her day - frustrations included - that's not an attack. That's trust. Listen without fixing. Sometimes \"I hear you\" is the most powerful thing you can say."],
                 ["II", "Your calm is her safety.", "She's not looking for a perfect man. She's looking for a man who doesn't fall apart when things get hard. Your stability - not your success, not your words - is what makes her feel safe with you."],
@@ -1995,7 +1998,10 @@ const [showTheCode, setShowTheCode] = useState(false);
         {/* The Code - hidden gem */}
         {showTheCode ? (
           <div style={{ padding: "32px 8px 16px", textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: T.accent, letterSpacing: 2, marginBottom: 20, textTransform: "uppercase" }}>The Code</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: T.accent, letterSpacing: 2, textTransform: "uppercase" }}>The Code</div>
+                <span onClick={() => setShowTheCode(false)} style={{ fontSize: 11, color: T.muted, cursor: "pointer", letterSpacing: 1 }}>✕ close</span>
+              </div>
             {[
               ["I", "She talks to connect, not to complain.", "When she shares her day - frustrations included - that's not an attack. That's trust. Listen without fixing. Sometimes \"I hear you\" is the most powerful thing you can say."],
               ["II", "Your calm is her safety.", "She's not looking for a perfect man. She's looking for a man who doesn't fall apart when things get hard. Your stability - not your success, not your words - is what makes her feel safe with you."],
