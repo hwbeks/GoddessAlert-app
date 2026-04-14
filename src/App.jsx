@@ -336,6 +336,27 @@ useEffect(() => {
   }
   loadPreferences();
 }, []);
+  useEffect(() => {
+  async function loadWeeklyRating() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const { data } = await supabase
+      .from("health_scores")
+      .select("score")
+      .eq("user_id", user.id)
+      .gte("recorded_at", sevenDaysAgo.toISOString())
+      .order("recorded_at", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      const s = data[0].score;
+      const val = s >= 4 ? "great" : s === 3 ? "good" : s === 2 ? "ok" : "poor";
+      setWeeklyRating(val);
+    }
+  }
+  loadWeeklyRating();
+}, []);
   const currentTip = tips.length > 0 ? tips[tipIndex % tips.length] : null;
 
   function hasAccess() {
