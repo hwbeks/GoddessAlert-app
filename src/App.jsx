@@ -515,7 +515,10 @@ useEffect(() => {
   async function toggleReminder(id) {
     const newDone = !reminders.find((x) => x.id === id)?.done;
     setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone } : x)));
-    await supabase.from("reminders").update({ done: newDone }).eq("id", id);
+    await supabase.from("reminders").update({ 
+  done: newDone,
+  completed_at: newDone ? new Date().toISOString() : null,
+}).eq("id", id);
   }
   
 async function savePreferences() {
