@@ -259,6 +259,7 @@ function MainApp({ partnerData }) {
   const [notifyPush, setNotifyPush] = useState(false);
   const [notifyDay, setNotifyDay] = useState("monday");
   const [notifyTime, setNotifyTime] = useState("09:00");
+  const [prefSaved, setPrefSaved] = useState(false);
   const [tips, setTips] = useState([]);
 
   useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user)); }, []);
@@ -316,7 +317,25 @@ function MainApp({ partnerData }) {
     }
     loadTips();
   }, []);
-
+  
+useEffect(() => {
+  async function loadPreferences() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_preferences")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+    if (data) {
+      setNotifyEmail(data.notify_email);
+      setNotifyPush(data.notify_push);
+      setNotifyDay(data.notify_day);
+      setNotifyTime(data.notify_time);
+    }
+  }
+  loadPreferences();
+}, []);
   const currentTip = tips.length > 0 ? tips[tipIndex % tips.length] : null;
 
   function hasAccess() {
@@ -400,7 +419,21 @@ function MainApp({ partnerData }) {
     setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone } : x)));
     await supabase.from("reminders").update({ done: newDone }).eq("id", id);
   }
-
+  
+async function savePreferences() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("user_preferences").upsert({
+    user_id: user.id,
+    notify_email: notifyEmail,
+    notify_push: notifyPush,
+    notify_day: notifyDay,
+    notify_time: notifyTime,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+  setPrefSaved(true);
+  setTimeout(() => setPrefSaved(false), 2000);
+}
   const healthScore = Math.min(100, score + (gestureDone || showRatingThanks ? 12 : 0));
   const scoreColor = healthScore >= 70 ? T.green : healthScore >= 40 ? T.accent : T.red;
 
@@ -626,7 +659,9 @@ function MainApp({ partnerData }) {
             <input type="time" value={notifyTime} onChange={(e) => setNotifyTime(e.target.value)} style={{ ...css.input, marginBottom: 0 }} />
           </div>
 
-          <button style={{ ...css.btn, marginTop: 8 }} onClick={() => {}}>Save preferences</button>
+         <button style={{ ...css.btn, marginTop: 8, background: prefSaved ? T.green : T.accent }} onClick={savePreferences}>
+  {prefSaved ? "✓ Saved" : "Save preferences"}
+</button>
 
           <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
           <div style={css.card}>
