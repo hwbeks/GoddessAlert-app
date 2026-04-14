@@ -311,12 +311,40 @@ function MainApp({ partnerData }) {
   }, []);
 
   useEffect(() => {
-    async function loadTips() {
-      const { data } = await supabase.from("tips").select("*").eq("status", "active").eq("category", "partner");
-      if (data) setTips(data);
+  async function loadTips() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Haal alle actieve tips op
+    const { data: allTips } = await supabase
+      .from("tips")
+      .select("*")
+      .eq("status", "active")
+      .eq("category", "partner");
+
+    if (!allTips || allTips.length === 0) return;
+
+    // Haal geziene tips op
+    const { data: seenData } = await supabase
+      .from("seen_tips")
+      .select("tip_id")
+      .eq("user_id", user.id);
+
+    const seenIds = new Set((seenData || []).map((s) => s.tip_id));
+
+    // Filter ongeziene tips
+    let unseenTips = allTips.filter((t) => !seenIds.has(t.id));
+
+    // Als alles gezien is — reset en begin opnieuw
+    if (unseenTips.length === 0) {
+      await supabase.from("seen_tips").delete().eq("user_id", user.id);
+      unseenTips = allTips;
     }
-    loadTips();
-  }, []);
+
+    setTips(unseenTips);
+  }
+  loadTips();
+}, []);
   
 useEffect(() => {
   async function loadPreferences() {
@@ -385,6 +413,7 @@ useEffect(() => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from("tip_ratings").upsert({ user_id: user.id, tip_id: currentTip.id, rating });
+        await supabase.from("seen_tips").upsert({ user_id: user.id, tip_id: currentTip.id }, { onConflict: "user_id,tip_id" });
         if (rating === "up") await supabase.from("tips").update({ thumbs_up: (currentTip.thumbs_up || 0) + 1 }).eq("id", currentTip.id);
         else await supabase.from("tips").update({ thumbs_down: (currentTip.thumbs_down || 0) + 1 }).eq("id", currentTip.id);
       }
