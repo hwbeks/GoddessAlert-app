@@ -255,6 +255,7 @@ function MainApp({ partnerData }) {
   const [tipIndex, setTipIndex] = useState(0);
   const [showRatingThanks, setShowRatingThanks] = useState(false);
   const [weeklyRating, setWeeklyRating] = useState(null);
+  const [scorePercentages, setScorePercentages] = useState({ reminders: 0, gestures: 0, checkins: 0 });
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifyPush, setNotifyPush] = useState(false);
   const [notifyDay, setNotifyDay] = useState("monday");
@@ -384,6 +385,53 @@ useEffect(() => {
     }
   }
   loadWeeklyRating();
+}, []);
+  useEffect(() => {
+  async function calculatePercentages() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+
+    // Reminders completed percentage
+    const { data: allReminders } = await supabase
+      .from("reminders")
+      .select("done")
+      .eq("user_id", user.id)
+      .gte("date", sevenDaysAgoDate);
+
+    const totalReminders = allReminders?.length || 0;
+    const doneReminders = allReminders?.filter((r) => r.done).length || 0;
+    const remindersPct = totalReminders === 0 ? 0 : Math.round((doneReminders / totalReminders) * 100);
+
+    // Gestures done percentage (tips gezien deze week / 7)
+    const { data: seenThisWeek } = await supabase
+      .from("seen_tips")
+      .select("id")
+      .eq("user_id", user.id)
+      .gte("seen_at", sevenDaysAgoISO);
+
+    const gesturesPct = Math.min(100, Math.round(((seenThisWeek?.length || 0) / 7) * 100));
+
+    // Weekly check-in percentage
+    const { data: checkins } = await supabase
+      .from("health_scores")
+      .select("id")
+      .eq("user_id", user.id)
+      .gte("recorded_at", sevenDaysAgoISO);
+
+    const checkinsPct = checkins && checkins.length > 0 ? 100 : 0;
+
+    setScorePercentages({
+      reminders: remindersPct,
+      gestures: gesturesPct,
+      checkins: checkinsPct,
+    });
+  }
+  calculatePercentages();
 }, []);
   const currentTip = tips.length > 0 ? tips[tipIndex % tips.length] : null;
 
@@ -757,7 +805,7 @@ async function savePreferences() {
               <div style={{ fontSize: 15, color: T.text, marginTop: 12, fontStyle: "italic" }}>{healthScore >= 70 ? `${name} feels seen. Keep it up.` : healthScore >= 40 ? "Getting there — stay consistent." : "Time to step up, brother."}</div>
             </div>
           </div>
-          {[{ label: "Reminders completed", pct: 75, color: T.green }, { label: "Gestures done this week", pct: gestureDone || showRatingThanks ? 100 : 33, color: T.accent }, { label: "Weekly check-ins", pct: weeklyRating ? 100 : 50, color: T.premium }].map((item, i) => (
+          {[{ label: "Reminders completed", pct: scorePercentages.reminders, color: T.green }, { label: "Gestures done this week", pct: gestureDone || showRatingThanks ? 100 : scorePercentages.gestures, color: T.accent }, { label: "Weekly check-ins", pct: scorePercentages.checkins, color: T.premium }].map((item, i) => (
             <div key={i} style={{ ...css.card, marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><div style={{ fontSize: 13 }}>{item.label}</div><div style={{ fontSize: 13, color: item.color, fontWeight: "bold" }}>{item.pct}%</div></div>
               <div style={{ height: 6, borderRadius: 3, background: T.border, overflow: "hidden" }}><div style={{ height: "100%", width: `${item.pct}%`, background: item.color, borderRadius: 3 }} /></div>
