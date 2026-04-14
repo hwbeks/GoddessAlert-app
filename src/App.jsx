@@ -333,13 +333,27 @@ function MainApp({ partnerData }) {
 
     const seenIds = new Set((seenData || []).map((s) => s.tip_id));
 
-    // Filter ongeziene tips
+  // Filter ongeziene tips
     let unseenTips = allTips.filter((t) => !seenIds.has(t.id));
 
     // Als alles gezien is — reset en begin opnieuw
     if (unseenTips.length === 0) {
       await supabase.from("seen_tips").delete().eq("user_id", user.id);
       unseenTips = allTips;
+    }
+
+    // Check of gebruiker vandaag al een tip heeft gezien
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data: seenToday } = await supabase
+      .from("seen_tips")
+      .select("id")
+      .eq("user_id", user.id)
+      .gte("seen_at", todayStart.toISOString());
+    if (seenToday && seenToday.length > 0) {
+      setTipIndex(1);
+      setTips(unseenTips);
+      return;
     }
 
     setTips(unseenTips);
