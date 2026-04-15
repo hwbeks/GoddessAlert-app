@@ -739,7 +739,7 @@ function MainApp({ partnerData }) {
             <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>How did she react?</div>
             <div style={{ display: "flex", gap: 16 }}>
               {[{ emoji: "😠", value: 1 }, { emoji: "😐", value: 2 }, { emoji: "😊", value: 3 }].map(({ emoji, value }) => (
-                <button key={value} onClick={() => saveReaction(r.id, value)} style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
+               <button key={value} onClick={(e) => { e.stopPropagation(); saveReaction(r.id, value); }} style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
                   {emoji}
                 </button>
               ))}
