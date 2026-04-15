@@ -18,7 +18,7 @@ const T = {
 const css = {
   app: { background: T.bg, minHeight: "100vh", fontFamily: "'Georgia', serif", color: T.text, display: "flex", flexDirection: "column", alignItems: "center" },
   page: { width: "100%", maxWidth: 420, minHeight: "100vh", display: "flex", flexDirection: "column", padding: "0 24px", boxSizing: "border-box" },
-  input: { width: "100%", background: "#111", border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", color: T.text, fontSize: 15, fontFamily: "Georgia, serif", boxSizing: "border-box", outline: "none", marginBottom: 12 },
+  input: { width: "100%", background: "#111", border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", color: T.text, fontSize: 15, fontFamily: "Georgia, serif", boxSizing: "border-box", outline: "none", marginBottom: 12, colorScheme: "dark", accentColor: "#e8c97e" },
   btn: { width: "100%", background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 30, padding: "15px", fontWeight: "bold", fontSize: 15, cursor: "pointer", fontFamily: "Georgia, serif", letterSpacing: 0.5 },
   btnGhost: { width: "100%", background: "transparent", color: T.muted, border: `1px solid ${T.border}`, borderRadius: 30, padding: "14px", fontSize: 14, cursor: "pointer", fontFamily: "Georgia, serif" },
   btnDanger: { width: "100%", background: "transparent", color: T.red, border: `1px solid ${T.red}`, borderRadius: 30, padding: "14px", fontSize: 14, cursor: "pointer", fontFamily: "Georgia, serif", fontWeight: "bold" },
@@ -536,7 +536,7 @@ function MainApp({ partnerData }) {
           <div style={{ fontSize: 11, color: T.muted, letterSpacing: 2, textTransform: "uppercase", marginTop: 2 }}>for attentive men</div>
           {streak > 1 && (
             <div style={{ fontSize: 11, color: T.accent, marginTop: 4 }}>
-              🔥 {streak} dagen op rij
+              🔥 {streak} {streak === 1 ? "day" : "days"} in a row
             </div>
           )}
         </div>
@@ -719,8 +719,8 @@ function MainApp({ partnerData }) {
         <div style={{ padding: "8px 24px" }}>
           <div style={css.sectionTitle}>How to notify me</div>
           <div style={css.card}>
-            {[{ label: "📧 Email reminders", sub: "Reliable — works on all devices", val: notifyEmail, set: setNotifyEmail }, { label: "🔔 Push notifications", sub: "Android & iPhone (home screen only)", val: notifyPush, set: setNotifyPush }].map((item, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: i === 0 ? 14 : 0, marginBottom: i === 0 ? 14 : 0, borderBottom: i === 0 ? `1px solid ${T.border}` : "none" }}>
+            {[{ label: "📧 Email reminders", sub: "Reliable — works on all devices", val: notifyEmail, set: setNotifyEmail }].map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div><div style={{ fontSize: 14, color: T.text }}>{item.label}</div><div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{item.sub}</div></div>
                 <div onClick={() => item.set((v) => !v)} style={{ width: 44, height: 24, borderRadius: 12, background: item.val ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}>
                   <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: item.val ? 23 : 3, transition: "left 0.2s" }} />
@@ -729,7 +729,6 @@ function MainApp({ partnerData }) {
             ))}
           </div>
           {notifyEmail && <div style={{ ...css.card, background: T.accentSoft, border: `1px solid ${T.accent}33`, marginBottom: 10 }}><div style={{ fontSize: 12, color: T.accent, lineHeight: 1.6 }}>✉️ Reminders will be sent to the email you signed in with. Make sure to check your spam folder the first time.</div></div>}
-          {notifyPush && <div style={{ ...css.card, background: "#ffffff08", border: `1px solid ${T.border}`, marginBottom: 10 }}><div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>🔔 On iPhone, add GoddessAlert to your home screen first: tap Share → "Add to Home Screen". Then allow notifications when prompted.</div></div>}
 
           <div style={{ ...css.sectionTitle, marginTop: 16 }}>Weekly check-in schedule</div>
           <div style={css.card}>
@@ -795,12 +794,12 @@ function MainApp({ partnerData }) {
           <div style={{ ...css.card, marginBottom: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 13, color: T.text }}>🔥 Huidige streak</div>
-                <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Langste streak: {longestStreak} dagen</div>
+                <div style={{ fontSize: 13, color: T.text }}>🔥 Current streak</div>
+                <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Longest streak: {longestStreak} {longestStreak === 1 ? "day" : "days"}</div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 28, fontWeight: "bold", color: streak >= 7 ? T.green : T.accent }}>{streak}</div>
-                <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>dagen</div>
+                <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>{streak === 1 ? "day" : "days"}</div>
               </div>
             </div>
           </div>
