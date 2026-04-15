@@ -258,6 +258,8 @@ function MainApp({ partnerData }) {
   const [notifyTime, setNotifyTime] = useState("09:00");
   const [prefSaved, setPrefSaved] = useState(false);
   const [tips, setTips] = useState([]);
+  // ── Wijziging 1: state voor partner reactie prompt ──
+  const [pendingReactionId, setPendingReactionId] = useState(null);
 
   useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user)); }, []);
 
@@ -281,23 +283,31 @@ function MainApp({ partnerData }) {
   }, []);
 
   useEffect(() => {
-    async function calculateScore() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      let score = 50;
-      const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoISO = sevenDaysAgo.toISOString();
-      const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
-      const { data: checkins } = await supabase.from("health_scores").select("score").eq("user_id", user.id).gte("recorded_at", sevenDaysAgoISO).order("recorded_at", { ascending: false }).limit(1);
-      if (checkins && checkins.length > 0) { const c = checkins[0]; if (c.score >= 4) score += 10; else if (c.score === 3) score += 5; else if (c.score <= 1) score -= 5; }
-      const { data: remindersData } = await supabase.from("reminders").select("done, date").eq("user_id", user.id).gte("date", sevenDaysAgoDate);
-      if (remindersData) { for (const r of remindersData) { if (r.done) score += 5; else score -= 3; } }
-      const { data: ratings } = await supabase.from("tip_ratings").select("rating, created_at").eq("user_id", user.id).gte("created_at", sevenDaysAgoISO);
-      if (ratings) { score += ratings.length * 5; for (const r of ratings) { if (r.rating === "up") score += 2; } }
-      setScore(Math.max(0, Math.min(100, score))); setScoreLoaded(true);
-    }
     calculateScore();
   }, []);
+
+  async function calculateScore() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    let score = 50;
+    const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+    const { data: checkins } = await supabase.from("health_scores").select("score").eq("user_id", user.id).gte("recorded_at", sevenDaysAgoISO).order("recorded_at", { ascending: false }).limit(1);
+    if (checkins && checkins.length > 0) { const c = checkins[0]; if (c.score >= 4) score += 10; else if (c.score === 3) score += 5; else if (c.score <= 1) score -= 5; }
+    const { data: remindersData } = await supabase.from("reminders").select("done, date, partner_reaction").eq("user_id", user.id).gte("date", sevenDaysAgoDate);
+    if (remindersData) {
+      for (const r of remindersData) {
+        if (r.done) score += 5; else score -= 3;
+        if (r.partner_reaction === 1) score -= 5;
+        else if (r.partner_reaction === 2) score += 3;
+        else if (r.partner_reaction === 3) score += 10;
+      }
+    }
+    const { data: ratings } = await supabase.from("tip_ratings").select("rating, created_at").eq("user_id", user.id).gte("created_at", sevenDaysAgoISO);
+    if (ratings) { score += ratings.length * 5; for (const r of ratings) { if (r.rating === "up") score += 2; } }
+    setScore(Math.max(0, Math.min(100, score))); setScoreLoaded(true);
+  }
 
   useEffect(() => {
     async function loadReminders() {
@@ -498,10 +508,21 @@ function MainApp({ partnerData }) {
     setNewReminder({ title: "", date: "", time: "", repeat: "never" }); setShowAddReminder(false);
   }
 
+  // ── Wijziging 2: toggleReminder triggert reactie-prompt bij afvinken ──
   async function toggleReminder(id) {
     const newDone = !reminders.find((x) => x.id === id)?.done;
     setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone } : x)));
     await supabase.from("reminders").update({ done: newDone, completed_at: newDone ? new Date().toISOString() : null }).eq("id", id);
+    if (newDone) setPendingReactionId(id);
+    else setPendingReactionId(null);
+  }
+
+  // ── Wijziging 3: saveReaction slaat partner_reaction op en herberekent score ──
+  async function saveReaction(id, reaction) {
+    await supabase.from("reminders").update({ partner_reaction: reaction }).eq("id", id);
+    setReminders((r) => r.map((x) => (x.id === id ? { ...x, partner_reaction: reaction } : x)));
+    setPendingReactionId(null);
+    calculateScore();
   }
 
   async function savePreferences() {
@@ -696,6 +717,29 @@ function MainApp({ partnerData }) {
                     <span style={{ fontSize: 12, color: T.muted }}>🕐 {r.time}</span>
                     {r.repeat !== "never" && <span style={{ fontSize: 11, color: T.accent, background: T.accentSoft, padding: "2px 8px", borderRadius: 10 }}>↻ {r.repeat}</span>}
                   </div>
+                  {/* ── Wijziging 4: partner reactie prompt ── */}
+                  {pendingReactionId === r.id && (
+                    <div style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}>
+                      <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>How did she react?</div>
+                      <div style={{ display: "flex", gap: 16 }}>
+                        {[
+                          { emoji: "😠", value: 1, nudge: "Next time, start earlier." },
+                          { emoji: "😐", value: 2, nudge: "She notices more than you think." },
+                          { emoji: "😊", value: 3, nudge: "This is exactly why you do this." },
+                        ].map(({ emoji, value }) => (
+                          <button
+                            key={value}
+                            onClick={() => saveReaction(r.id, value)}
+                            style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.15s" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#ffffff15"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -760,7 +804,7 @@ function MainApp({ partnerData }) {
           </div>
 
           <div style={{ fontSize: 11, color: T.muted, textAlign: "center", marginTop: 12, marginBottom: 8, lineHeight: 1.6 }}>
-            GoddessAlert v1.0 · By using this app you agree to our Terms of Use and Privacy Policy
+            GoddessAlert v1.1 · By using this app you agree to our Terms of Use and Privacy Policy
             {showTheCode ? (
               <div style={{ padding: "32px 8px 16px", textAlign: "center" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
