@@ -260,6 +260,7 @@ function MainApp({ partnerData }) {
   const [prefSaved, setPrefSaved] = useState(false);
   const [tips, setTips] = useState([]);
   const [pendingReactionId, setPendingReactionId] = useState(null);
+  const [nudgeMessage, setNudgeMessage] = useState(null);
 
   useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user)); }, []);
 
@@ -511,12 +512,15 @@ function MainApp({ partnerData }) {
     else setPendingReactionId(null);
   }
 
-  async function saveReaction(id, reaction) {
-    await supabase.from("reminders").update({ partner_reaction: reaction }).eq("id", id);
-    setReminders((r) => r.map((x) => (x.id === id ? { ...x, partner_reaction: reaction } : x)));
-    setPendingReactionId(null);
-    setScoreVersion((v) => v + 1);
-  }
+ async function saveReaction(id, reaction) {
+  await supabase.from("reminders").update({ partner_reaction: reaction }).eq("id", id);
+  setReminders((r) => r.map((x) => (x.id === id ? { ...x, partner_reaction: reaction } : x)));
+  setPendingReactionId(null);
+  setScoreVersion((v) => v + 1);
+  const nudges = { 1: "Next time, start earlier.", 2: "She notices more than you think.", 3: "This is exactly why you do this." };
+  setNudgeMessage(nudges[reaction]);
+  setTimeout(() => setNudgeMessage(null), 3000);
+}
 
   async function savePreferences() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -875,7 +879,11 @@ function MainApp({ partnerData }) {
           </div>
         ))}
       </div>
-
+{nudgeMessage && (
+  <div style={{ position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)", background: T.card, border: `1px solid ${T.accent}`, borderRadius: 16, padding: "14px 20px", fontSize: 13, color: T.accent, fontStyle: "italic", textAlign: "center", zIndex: 300, maxWidth: 320, boxShadow: "0 4px 24px #00000066" }}>
+    {nudgeMessage}
+  </div>
+)}
       {/* Add Event Modal */}
       {showAddModal && (
         <div style={css.modal} onClick={() => setShowAddModal(false)}>
