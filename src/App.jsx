@@ -728,14 +728,28 @@ function MainApp({ partnerData }) {
           ))}
           {reminders.filter((r) => r.done).length > 0 && (<>
             <div style={{ ...css.sectionTitle, marginTop: 20 }}>Completed</div>
-            {reminders.filter((r) => r.done).map((r) => (
-              <div key={r.id} style={{ ...css.card, opacity: 0.5 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button onClick={() => toggleReminder(r.id)} style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, border: `2px solid ${T.green}`, background: T.green + "33", cursor: "pointer", fontSize: 12, color: T.green, display: "flex", alignItems: "center", justifyContent: "center" }}>✓</button>
-                  <div style={{ fontSize: 14, color: T.muted, textDecoration: "line-through" }}>{r.title}</div>
-                </div>
-              </div>
-            ))}
+           {reminders.filter((r) => r.done).map((r) => (
+  <div key={r.id} style={{ ...css.card, opacity: pendingReactionId === r.id ? 1 : 0.5 }}>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <button onClick={() => toggleReminder(r.id)} style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, border: `2px solid ${T.green}`, background: T.green + "33", cursor: "pointer", fontSize: 12, color: T.green, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}>✓</button>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, color: T.muted, textDecoration: "line-through" }}>{r.title}</div>
+        {pendingReactionId === r.id && (
+          <div style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}>
+            <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>How did she react?</div>
+            <div style={{ display: "flex", gap: 16 }}>
+              {[{ emoji: "😠", value: 1 }, { emoji: "😐", value: 2 }, { emoji: "😊", value: 3 }].map(({ emoji, value }) => (
+                <button key={value} onClick={() => saveReaction(r.id, value)} style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+))}
           </>)}
         </div>
       )}
