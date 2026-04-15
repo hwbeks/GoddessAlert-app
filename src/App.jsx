@@ -147,7 +147,6 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
     </div>
   );
 
-  // Geen subscription record — nieuwe gebruiker in trial
   if (!subscription) {
     return (
       <div style={{ padding: "0 24px 8px" }}>
@@ -163,11 +162,8 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
   }
 
   const { status, trial_end, current_period_end } = subscription;
-
-  // Actief betaald abonnement zonder trial — geen banner
   if (status === "active" && !trial_end) return null;
 
-  // Trial actief
   if (status === "trialing" && trial_end) {
     const daysLeft = daysUntilDate(trial_end);
     return (
@@ -183,7 +179,6 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
     );
   }
 
-  // Betaling mislukt
   if (status === "past_due") {
     return (
       <div style={{ padding: "0 24px 8px" }}>
@@ -195,7 +190,6 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
     );
   }
 
-  // Opgezegd maar nog toegang
   if (status === "canceled" && current_period_end) {
     const daysLeft = daysUntilDate(current_period_end);
     if (daysLeft > 0) {
@@ -239,6 +233,8 @@ function MainApp({ partnerData }) {
   const [subscriptionLoaded, setSubscriptionLoaded] = useState(false);
   const [score, setScore] = useState(50);
   const [scoreLoaded, setScoreLoaded] = useState(false);
+  const [streak, setStreak] = useState(1);
+  const [longestStreak, setLongestStreak] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [showAddReminder, setShowAddReminder] = useState(false);
@@ -279,7 +275,7 @@ function MainApp({ partnerData }) {
   useEffect(() => {
     async function loadEvents() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) { const { data } = await supabase.from("events").select("*").eq("user_id", user.id).order("date", { ascending: true }); if (data) setEvents(data); }
+      if (user) { const { data } = await supabase.from("events").select("*").eq("user_id", user.id); if (data) { const sorted = [...data].sort((a, b) => daysUntil(a.date) - daysUntil(b.date)); setEvents(sorted); } }
     }
     loadEvents();
   }, []);
@@ -312,146 +308,119 @@ function MainApp({ partnerData }) {
   }, []);
 
   useEffect(() => {
-  async function loadTips() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Haal alle actieve tips op
-    const { data: allTips } = await supabase
-      .from("tips")
-      .select("*")
-      .eq("status", "active")
-      .eq("category", "partner");
-
-    if (!allTips || allTips.length === 0) return;
-
-    // Haal geziene tips op
-    const { data: seenData } = await supabase
-      .from("seen_tips")
-      .select("tip_id")
-      .eq("user_id", user.id);
-
-    const seenIds = new Set((seenData || []).map((s) => s.tip_id));
-
-  // Filter ongeziene tips
-    let unseenTips = allTips.filter((t) => !seenIds.has(t.id));
-
-    // Als alles gezien is — reset en begin opnieuw
-    if (unseenTips.length === 0) {
-      await supabase.from("seen_tips").delete().eq("user_id", user.id);
-      unseenTips = allTips;
-    }
-
-    // Check of gebruiker vandaag al een tip heeft gezien
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const { data: seenToday } = await supabase
-      .from("seen_tips")
-      .select("id")
-      .eq("user_id", user.id)
-      .gte("seen_at", todayStart.toISOString());
-    if (seenToday && seenToday.length > 0) {
-      setTipIndex(1);
+    async function loadTips() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: allTips } = await supabase.from("tips").select("*").eq("status", "active").eq("category", "partner");
+      if (!allTips || allTips.length === 0) return;
+      const { data: seenData } = await supabase.from("seen_tips").select("tip_id").eq("user_id", user.id);
+      const seenIds = new Set((seenData || []).map((s) => s.tip_id));
+      let unseenTips = allTips.filter((t) => !seenIds.has(t.id));
+      if (unseenTips.length === 0) {
+        await supabase.from("seen_tips").delete().eq("user_id", user.id);
+        unseenTips = allTips;
+      }
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { data: seenToday } = await supabase.from("seen_tips").select("id").eq("user_id", user.id).gte("seen_at", todayStart.toISOString());
+      if (seenToday && seenToday.length > 0) {
+        setTipIndex(1);
+        setTips(unseenTips);
+        return;
+      }
       setTips(unseenTips);
-      return;
     }
+    loadTips();
+  }, []);
 
-    setTips(unseenTips);
-  }
-  loadTips();
-}, []);
-  
-useEffect(() => {
-  async function loadPreferences() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase
-      .from("user_preferences")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-    if (data) {
-      setNotifyEmail(data.notify_email);
-      setNotifyPush(data.notify_push);
-      setNotifyDay(data.notify_day);
-      setNotifyTime(data.notify_time);
-    }
-  }
-  loadPreferences();
-}, []);
   useEffect(() => {
-  async function loadWeeklyRating() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const { data } = await supabase
-      .from("health_scores")
-      .select("score")
-      .eq("user_id", user.id)
-      .gte("recorded_at", sevenDaysAgo.toISOString())
-      .order("recorded_at", { ascending: false })
-      .limit(1);
-    if (data && data.length > 0) {
-      const s = data[0].score;
-      const val = s >= 4 ? "great" : s === 3 ? "good" : s === 2 ? "ok" : "poor";
-      setWeeklyRating(val);
+    async function loadPreferences() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("user_preferences").select("*").eq("user_id", user.id).single();
+      if (data) { setNotifyEmail(data.notify_email); setNotifyPush(data.notify_push); setNotifyDay(data.notify_day); setNotifyTime(data.notify_time); }
     }
-  }
-  loadWeeklyRating();
-}, []);
+    loadPreferences();
+  }, []);
+
   useEffect(() => {
-  async function calculatePercentages() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    async function loadWeeklyRating() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { data } = await supabase.from("health_scores").select("score").eq("user_id", user.id).gte("recorded_at", sevenDaysAgo.toISOString()).order("recorded_at", { ascending: false }).limit(1);
+      if (data && data.length > 0) {
+        const s = data[0].score;
+        setWeeklyRating(s >= 4 ? "great" : s === 3 ? "good" : s === 2 ? "ok" : "poor");
+      }
+    }
+    loadWeeklyRating();
+  }, []);
 
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
-    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+  useEffect(() => {
+    async function calculatePercentages() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+      const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+      const { data: allReminders } = await supabase.from("reminders").select("done").eq("user_id", user.id).gte("date", sevenDaysAgoDate);
+      const totalReminders = allReminders?.length || 0;
+      const doneReminders = allReminders?.filter((r) => r.done).length || 0;
+      const remindersPct = totalReminders === 0 ? 0 : Math.round((doneReminders / totalReminders) * 100);
+      const { data: seenThisWeek } = await supabase.from("seen_tips").select("id").eq("user_id", user.id).gte("seen_at", sevenDaysAgoISO);
+      const gesturesPct = Math.min(100, Math.round(((seenThisWeek?.length || 0) / 7) * 100));
+      const { data: checkins } = await supabase.from("health_scores").select("id").eq("user_id", user.id).gte("recorded_at", sevenDaysAgoISO);
+      const checkinsPct = checkins && checkins.length > 0 ? 100 : 0;
+      setScorePercentages({ reminders: remindersPct, gestures: gesturesPct, checkins: checkinsPct });
+    }
+    calculatePercentages();
+  }, []);
 
-    // Reminders completed percentage
-    const { data: allReminders } = await supabase
-      .from("reminders")
-      .select("done")
-      .eq("user_id", user.id)
-      .gte("date", sevenDaysAgoDate);
+  // ── Streak tracking ──
+  useEffect(() => {
+    async function updateStreak() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const totalReminders = allReminders?.length || 0;
-    const doneReminders = allReminders?.filter((r) => r.done).length || 0;
-    const remindersPct = totalReminders === 0 ? 0 : Math.round((doneReminders / totalReminders) * 100);
+      const today = new Date().toISOString().split("T")[0];
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-    // Gestures done percentage (tips gezien deze week / 7)
-    const { data: seenThisWeek } = await supabase
-      .from("seen_tips")
-      .select("id")
-      .eq("user_id", user.id)
-      .gte("seen_at", sevenDaysAgoISO);
+      const { data: existing } = await supabase.from("streaks").select("*").eq("user_id", user.id).single();
 
-    const gesturesPct = Math.min(100, Math.round(((seenThisWeek?.length || 0) / 7) * 100));
+      if (!existing) {
+        await supabase.from("streaks").insert({ user_id: user.id, current_streak: 1, longest_streak: 1, last_active_date: today });
+        setStreak(1); setLongestStreak(1);
+        return;
+      }
 
-    // Weekly check-in percentage
-    const { data: checkins } = await supabase
-      .from("health_scores")
-      .select("id")
-      .eq("user_id", user.id)
-      .gte("recorded_at", sevenDaysAgoISO);
+      if (existing.last_active_date === today) {
+        setStreak(existing.current_streak);
+        setLongestStreak(existing.longest_streak);
+        return;
+      }
 
-    const checkinsPct = checkins && checkins.length > 0 ? 100 : 0;
+      if (existing.last_active_date === yesterdayStr) {
+        const newStreak = existing.current_streak + 1;
+        const newLongest = Math.max(newStreak, existing.longest_streak);
+        await supabase.from("streaks").update({ current_streak: newStreak, longest_streak: newLongest, last_active_date: today, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+        setStreak(newStreak); setLongestStreak(newLongest);
+      } else {
+        await supabase.from("streaks").update({ current_streak: 1, last_active_date: today, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+        setStreak(1); setLongestStreak(existing.longest_streak);
+      }
+    }
+    updateStreak();
+  }, []);
 
-    setScorePercentages({
-      reminders: remindersPct,
-      gestures: gesturesPct,
-      checkins: checkinsPct,
-    });
-  }
-  calculatePercentages();
-}, []);
   const currentTip = tips.length > 0 ? tips[tipIndex % tips.length] : null;
 
   function hasAccess() {
     if (!subscriptionLoaded) return true;
-    if (!subscription) return true; // nieuwe gebruiker — trial
+    if (!subscription) return true;
     const { status, trial_end, current_period_end } = subscription;
     if (status === "trialing" && trial_end && new Date(trial_end) > new Date()) return true;
     if (status === "active") return true;
@@ -495,6 +464,9 @@ useEffect(() => {
       await supabase.from("events").delete().eq("user_id", uid);
       await supabase.from("partners").delete().eq("user_id", uid);
       await supabase.from("subscriptions").delete().eq("user_id", uid);
+      await supabase.from("seen_tips").delete().eq("user_id", uid);
+      await supabase.from("streaks").delete().eq("user_id", uid);
+      await supabase.from("user_preferences").delete().eq("user_id", uid);
       await supabase.from("users").delete().eq("id", uid);
       await supabase.functions.invoke("bright-worker", { body: { action: "delete-account", userId: uid } });
       await supabase.auth.signOut();
@@ -531,21 +503,15 @@ useEffect(() => {
     setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone } : x)));
     await supabase.from("reminders").update({ done: newDone, completed_at: newDone ? new Date().toISOString() : null }).eq("id", id);
   }
-  
-async function savePreferences() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase.from("user_preferences").upsert({
-    user_id: user.id,
-    notify_email: notifyEmail,
-    notify_push: notifyPush,
-    notify_day: notifyDay,
-    notify_time: notifyTime,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id" });
-  setPrefSaved(true);
-  setTimeout(() => setPrefSaved(false), 2000);
-}
+
+  async function savePreferences() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("user_preferences").upsert({ user_id: user.id, notify_email: notifyEmail, notify_push: notifyPush, notify_day: notifyDay, notify_time: notifyTime, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    setPrefSaved(true);
+    setTimeout(() => setPrefSaved(false), 2000);
+  }
+
   const healthScore = Math.min(100, score + (gestureDone || showRatingThanks ? 12 : 0));
   const scoreColor = healthScore >= 70 ? T.green : healthScore >= 40 ? T.accent : T.red;
 
@@ -568,6 +534,11 @@ async function savePreferences() {
         <div>
           <div style={{ fontSize: 22, color: T.accent, fontStyle: "italic", letterSpacing: 1 }}>GoddessAlert</div>
           <div style={{ fontSize: 11, color: T.muted, letterSpacing: 2, textTransform: "uppercase", marginTop: 2 }}>for attentive men</div>
+          {streak > 1 && (
+            <div style={{ fontSize: 11, color: T.accent, marginTop: 4 }}>
+              🔥 {streak} dagen op rij
+            </div>
+          )}
         </div>
         <div onClick={() => setShowScoreModal(true)} style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${T.accent}`, background: T.accentSoft, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <div style={{ fontSize: 18, fontWeight: "bold", color: T.accent, lineHeight: 1 }}>{healthScore}</div>
@@ -771,9 +742,9 @@ async function savePreferences() {
             <input type="time" value={notifyTime} onChange={(e) => setNotifyTime(e.target.value)} style={{ ...css.input, marginBottom: 0 }} />
           </div>
 
-         <button style={{ ...css.btn, marginTop: 8, background: prefSaved ? T.green : T.accent }} onClick={savePreferences}>
-  {prefSaved ? "✓ Saved" : "Save preferences"}
-</button>
+          <button style={{ ...css.btn, marginTop: 8, background: prefSaved ? T.green : T.accent }} onClick={savePreferences}>
+            {prefSaved ? "✓ Saved" : "Save preferences"}
+          </button>
 
           <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
           <div style={css.card}>
@@ -819,12 +790,28 @@ async function savePreferences() {
               <div style={{ fontSize: 15, color: T.text, marginTop: 12, fontStyle: "italic" }}>{healthScore >= 70 ? `${name} feels seen. Keep it up.` : healthScore >= 40 ? "Getting there — stay consistent." : "Time to step up, brother."}</div>
             </div>
           </div>
+
+          {/* Streak kaart */}
+          <div style={{ ...css.card, marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 13, color: T.text }}>🔥 Huidige streak</div>
+                <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Langste streak: {longestStreak} dagen</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 28, fontWeight: "bold", color: streak >= 7 ? T.green : T.accent }}>{streak}</div>
+                <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>dagen</div>
+              </div>
+            </div>
+          </div>
+
           {[{ label: "Reminders completed", pct: scorePercentages.reminders, color: T.green }, { label: "Gestures done this week", pct: gestureDone || showRatingThanks ? 100 : scorePercentages.gestures, color: T.accent }, { label: "Weekly check-ins", pct: scorePercentages.checkins, color: T.premium }].map((item, i) => (
             <div key={i} style={{ ...css.card, marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><div style={{ fontSize: 13 }}>{item.label}</div><div style={{ fontSize: 13, color: item.color, fontWeight: "bold" }}>{item.pct}%</div></div>
               <div style={{ height: 6, borderRadius: 3, background: T.border, overflow: "hidden" }}><div style={{ height: "100%", width: `${item.pct}%`, background: item.color, borderRadius: 3 }} /></div>
             </div>
           ))}
+
           {showTheCode ? (
             <div style={{ padding: "32px 8px 16px", textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
