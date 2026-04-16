@@ -21,7 +21,11 @@ export default function EventsTab({ events, setEvents }) {
     if (user) {
       const { data, error } = await supabase.from("events").insert({ user_id: user.id, name: newEvent.name, date: newEvent.date, days_before: newEvent.daysBefore || 7, emoji: "📅", repeat_yearly: true }).select().single();
       if (error) console.error("Event insert error:", error);
-      if (data) setEvents((e) => [...e, data]);
+      if (data) setEvents((e) => [...e, data].sort((a, b) => {
+  const daysA = daysUntil(a.date);
+  const daysB = daysUntil(b.date);
+  return daysA - daysB;
+}));
     }
     setNewEvent({ name: "", date: "", daysBefore: 7 }); setShowAddModal(false);
   }
@@ -41,7 +45,7 @@ export default function EventsTab({ events, setEvents }) {
                 <div style={{ fontSize: 28 }}>{ev.emoji}</div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: "bold" }}>{ev.name}</div>
-                  <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>Alert: {ev.daysBefore} days before</div>
+                  <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>Alert: {ev.days_before} days before</div>
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
