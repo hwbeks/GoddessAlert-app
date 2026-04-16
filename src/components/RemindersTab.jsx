@@ -14,14 +14,22 @@ export default function RemindersTab({
   const [newReminder, setNewReminder] = useState({ title: "", date: "", time: "", repeat: "never" });
 
   async function addReminder() {
-    if (!newReminder.title || !newReminder.date || !newReminder.time) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase.from("reminders").insert({ user_id: user.id, title: newReminder.title, date: newReminder.date, time: newReminder.time, repeat: newReminder.repeat, done: false }).select().single();
-      if (data) setReminders((r) => [...r, data]);
-    }
-    setNewReminder({ title: "", date: "", time: "", repeat: "never" }); setShowAddReminder(false);
-  }
+  if (!newReminder.title || !newReminder.date || !newReminder.time) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data, error } = await supabase.from("reminders").insert({ 
+    user_id: user.id, 
+    title: newReminder.title, 
+    date: newReminder.date, 
+    time: newReminder.time, 
+    repeat: newReminder.repeat, 
+    done: false 
+  }).select().single();
+  if (error) console.error("Reminder insert error:", error);
+  if (data) setReminders((r) => [data, ...r]);
+  setNewReminder({ title: "", date: "", time: "", repeat: "never" }); 
+  setShowAddReminder(false);
+}
 
   return (
     <div style={{ padding: "8px 24px" }}>
