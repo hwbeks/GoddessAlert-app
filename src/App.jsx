@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import TheCode from "./components/TheCode";
+import EventsTab from "./components/EventsTab";
 import { stripePromise, PRICES } from "./stripe";
 import { useState, useEffect } from "react";
 
@@ -658,33 +659,10 @@ function MainApp({ partnerData }) {
         </div>
       )}
 
-      {/* EVENTS TAB */}
-      {tab === "events" && (
-        <div style={{ padding: "8px 24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={css.sectionTitle}>Upcoming Events</div>
-            <button onClick={() => setShowAddModal(true)} style={{ background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "5px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>+ Add</button>
-          </div>
-          {events.map((ev) => {
-            const days = daysUntil(ev.date);
-            return (
-              <div key={ev.id} style={days <= 7 ? css.cardAccent : css.card}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ fontSize: 28 }}>{ev.emoji}</div>
-                    <div><div style={{ fontSize: 15, fontWeight: "bold" }}>{ev.name}</div><div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>Alert: {ev.daysBefore} days before</div></div>
-                  </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 28, fontWeight: "bold", color: days <= 3 ? T.red : days <= 7 ? T.accent : T.green }}>{days}</div>
-                    <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>days</div>
-                  </div>
-                </div>
-                {days <= 7 && <div style={{ marginTop: 10, padding: "8px 12px", background: T.red + "15", borderRadius: 8, fontSize: 12, color: T.red }}>{daysUntil(ev.date) === 0 ? "🎉 Today is the day! Don't forget to make it special." : "⚡ Action needed — don't wait any longer"}</div>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+{/* EVENTS TAB */}
+{tab === "events" && (
+  <EventsTab events={events} setEvents={setEvents} />
+)}
 
       {/* REMINDERS TAB */}
       {tab === "reminders" && (
