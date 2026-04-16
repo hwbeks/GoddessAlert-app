@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import TheCode from "./components/TheCode";
 import EventsTab from "./components/EventsTab";
+import SettingsTab from "./components/SettingsTab";
 import { stripePromise, PRICES } from "./stripe";
 import { useState, useEffect } from "react";
 
@@ -727,59 +728,21 @@ function MainApp({ partnerData }) {
           </>)}
         </div>
       )}
-
-      {/* SETTINGS TAB */}
-      {tab === "settings" && (
-        <div style={{ padding: "8px 24px" }}>
-          <div style={css.sectionTitle}>How to notify me</div>
-          <div style={css.card}>
-            {[{ label: "📧 Email reminders", sub: "Reliable — works on all devices", val: notifyEmail, set: setNotifyEmail }].map((item, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div><div style={{ fontSize: 14, color: T.text }}>{item.label}</div><div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{item.sub}</div></div>
-                <div onClick={() => item.set((v) => !v)} style={{ width: 44, height: 24, borderRadius: 12, background: item.val ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}>
-                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: item.val ? 23 : 3, transition: "left 0.2s" }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          {notifyEmail && <div style={{ ...css.card, background: T.accentSoft, border: `1px solid ${T.accent}33`, marginBottom: 10 }}><div style={{ fontSize: 12, color: T.accent, lineHeight: 1.6 }}>✉️ Reminders will be sent to the email you signed in with. Make sure to check your spam folder the first time.</div></div>}
-
-          <div style={{ ...css.sectionTitle, marginTop: 16 }}>Weekly check-in schedule</div>
-          <div style={css.card}>
-            <div style={{ fontSize: 13, color: T.muted, marginBottom: 12 }}>When should we nudge you to check in?</div>
-            <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>Day</label>
-            <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-              {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => (<button key={d} onClick={() => setNotifyDay(d)} style={{ flex: 1, minWidth: 36, background: notifyDay === d ? T.accent : T.accentSoft, color: notifyDay === d ? "#0d0d0d" : T.text, border: `1px solid ${notifyDay === d ? T.accent : T.border}`, borderRadius: 8, padding: "8px 4px", fontSize: 11, fontWeight: "bold", cursor: "pointer", fontFamily: "Georgia, serif" }}>{d}</button>))}
-            </div>
-            <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>Time</label>
-            <input type="time" value={notifyTime} onChange={(e) => setNotifyTime(e.target.value)} style={{ ...css.input, marginBottom: 0 }} />
-          </div>
-
-          <button style={{ ...css.btn, marginTop: 8, background: prefSaved ? T.green : T.accent }} onClick={savePreferences}>
-            {prefSaved ? "✓ Saved" : "Save preferences"}
-          </button>
-
-          <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
-          <div style={css.card}>
-            {[{ label: "📄 Terms of Use", sub: "Your rights and responsibilities", url: "https://goddessalert.com/terms.html" }, { label: "🔒 Privacy Policy", sub: "How we handle your data", url: "https://goddessalert.com/privacy.html" }].map((item, i) => (
-              <div key={i} onClick={() => window.open(item.url, "_blank")} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 14, marginBottom: 14, borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}>
-                <div><div style={{ fontSize: 14, color: T.text }}>{item.label}</div><div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{item.sub}</div></div>
-                <div style={{ fontSize: 16, color: T.muted }}>›</div>
-              </div>
-            ))}
-            <div onClick={() => setShowDeleteModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-              <div><div style={{ fontSize: 14, color: T.red }}>🗑️ Delete my account</div><div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Permanently remove all your data</div></div>
-              <div style={{ fontSize: 16, color: T.muted }}>›</div>
-            </div>
-          </div>
-
-          <div style={{ fontSize: 11, color: T.muted, textAlign: "center", marginTop: 12, marginBottom: 8, lineHeight: 1.6 }}>
-            GoddessAlert v1.1 · By using this app you agree to our Terms of Use and Privacy Policy
-   <TheCode showTheCode={showTheCode} setShowTheCode={setShowTheCode} />
-          </div>
-        </div>
-      )}
-
+{/* SETTINGS TAB */}
+{tab === "settings" && (
+  <SettingsTab
+    notifyEmail={notifyEmail}
+    setNotifyEmail={setNotifyEmail}
+    notifyPush={notifyPush}
+    setNotifyPush={setNotifyPush}
+    notifyDay={notifyDay}
+    setNotifyDay={setNotifyDay}
+    notifyTime={notifyTime}
+    setNotifyTime={setNotifyTime}
+    showTheCode={showTheCode}
+    setShowTheCode={setShowTheCode}
+  />
+)}
       {/* SCORE TAB */}
       {tab === "score" && (
         <div style={{ padding: "8px 24px" }}>
