@@ -16,12 +16,17 @@ export default function SettingsTab({
   const [deleteError, setDeleteError] = useState("");
 
   async function savePreferences() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from("user_preferences").upsert({ user_id: user.id, notify_email: notifyEmail, notify_push: notifyPush, notify_day: notifyDay, notify_time: notifyTime, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    setPrefSaved(true);
-    setTimeout(() => setPrefSaved(false), 2000);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data: existing } = await supabase.from("user_preferences").select("user_id").eq("user_id", user.id).single();
+  if (existing) {
+    await supabase.from("user_preferences").update({ notify_email: notifyEmail, notify_push: notifyPush, notify_day: notifyDay, notify_time: notifyTime, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+  } else {
+    await supabase.from("user_preferences").insert({ user_id: user.id, notify_email: notifyEmail, notify_push: notifyPush, notify_day: notifyDay, notify_time: notifyTime });
   }
+  setPrefSaved(true);
+  setTimeout(() => setPrefSaved(false), 2000);
+}
 
   async function handleDeleteAccount() {
     setDeleteLoading(true); setDeleteError("");
