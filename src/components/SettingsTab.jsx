@@ -118,8 +118,7 @@ export default function SettingsTab({
           <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>🗑️</div>
-              <div style={{ fontSize: 20, fontWeight: "bold", color: T.red, marginBottom: 8
->Delete my account</div>
+              <div style={{ fontSize: 20, fontWeight: "bold", color: T.red, marginBottom: 8 }}>Delete my account</div>
               <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.7 }}>This will permanently delete all your data — events, reminders, check-ins, and your account. This cannot be undone.</div>
             </div>
             {deleteError && <div style={{ fontSize: 13, color: T.red, textAlign: "center", marginBottom: 12, padding: "10px", background: T.red + "15", borderRadius: 8 }}>{deleteError}</div>}
