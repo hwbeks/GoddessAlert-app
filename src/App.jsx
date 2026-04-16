@@ -8,7 +8,14 @@ import HomeTab from "./components/HomeTab";
 import { stripePromise, PRICES } from "./stripe";
 import { useState, useEffect } from "react";
 import { T, css } from "./theme";
-
+function daysUntil(dateStr) {
+  const today = new Date();
+  const target = new Date(dateStr + "T00:00:00");
+  target.setFullYear(today.getFullYear());
+  if (target.getMonth() === today.getMonth() && target.getDate() === today.getDate()) return 0;
+  if (target < today) target.setFullYear(today.getFullYear() + 1);
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
 function daysUntilDate(isoDate) {
   return Math.max(0, Math.ceil((new Date(isoDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
 }
