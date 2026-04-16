@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import TheCode from "./components/TheCode";
 import EventsTab from "./components/EventsTab";
 import SettingsTab from "./components/SettingsTab";
+import RemindersTab from "./components/RemindersTab";
 import { stripePromise, PRICES } from "./stripe";
 import { useState, useEffect } from "react";
 
@@ -664,70 +665,17 @@ function MainApp({ partnerData }) {
 {tab === "events" && (
   <EventsTab events={events} setEvents={setEvents} />
 )}
-
-      {/* REMINDERS TAB */}
-      {tab === "reminders" && (
-        <div style={{ padding: "8px 24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={css.sectionTitle}>My Reminders</div>
-            <button onClick={() => setShowAddReminder(true)} style={{ background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "5px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>+ Add</button>
-          </div>
-          {reminders.filter((r) => !r.done).length === 0 && (<div style={{ ...css.card, textAlign: "center", padding: "28px 18px" }}><div style={{ fontSize: 28, marginBottom: 8 }}>✅</div><div style={{ fontSize: 14, color: T.muted }}>All clear — nothing pending</div></div>)}
-          {reminders.filter((r) => !r.done).map((r) => (
-            <div key={r.id} style={css.cardAccent}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                <button onClick={() => toggleReminder(r.id)} style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, border: `2px solid ${T.accent}`, background: "transparent", cursor: "pointer", marginTop: 2 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: "bold", color: T.text }}>{r.title}</div>
-                  <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, color: T.muted }}>📅 {new Date(r.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-                    <span style={{ fontSize: 12, color: T.muted }}>🕐 {r.time}</span>
-                    {r.repeat !== "never" && <span style={{ fontSize: 11, color: T.accent, background: T.accentSoft, padding: "2px 8px", borderRadius: 10 }}>↻ {r.repeat}</span>}
-                  </div>
-                  {/* Partner reactie prompt */}
-                  {pendingReactionId === r.id && (
-                    <div style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}>
-                      <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>How did she react?</div>
-                      <div style={{ display: "flex", gap: 16 }}>
-                        {[{ emoji: "😠", value: 1 }, { emoji: "😐", value: 2 }, { emoji: "😊", value: 3 }].map(({ emoji, value }) => (
-                          <button key={value} onClick={() => saveReaction(r.id, value)} style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-          {reminders.filter((r) => r.done).length > 0 && (<>
-            <div style={{ ...css.sectionTitle, marginTop: 20 }}>Completed</div>
-           {reminders.filter((r) => r.done).map((r) => (
-  <div key={r.id} style={{ ...css.card, opacity: pendingReactionId === r.id ? 1 : 0.5 }}>
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-      <button onClick={() => toggleReminder(r.id)} style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, border: `2px solid ${T.green}`, background: T.green + "33", cursor: "pointer", fontSize: 12, color: T.green, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}>✓</button>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, color: T.muted, textDecoration: "line-through" }}>{r.title}</div>
-        {pendingReactionId === r.id && (
-          <div style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}>
-            <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>How did she react?</div>
-            <div style={{ display: "flex", gap: 16 }}>
-              {[{ emoji: "😠", value: 1 }, { emoji: "😐", value: 2 }, { emoji: "😊", value: 3 }].map(({ emoji, value }) => (
-               <button key={value} onClick={(e) => { e.stopPropagation(); saveReaction(r.id, value); }} style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-))}
-          </>)}
-        </div>
-      )}
+{/* REMINDERS TAB */}
+{tab === "reminders" && (
+  <RemindersTab
+    reminders={reminders}
+    setReminders={setReminders}
+    toggleReminder={toggleReminder}
+    saveReaction={saveReaction}
+    pendingReactionId={pendingReactionId}
+    nudgeMessage={nudgeMessage}
+  />
+)}
 {/* SETTINGS TAB */}
 {tab === "settings" && (
   <SettingsTab
