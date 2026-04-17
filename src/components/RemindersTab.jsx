@@ -14,7 +14,6 @@ export default function RemindersTab({
   const [newReminder, setNewReminder] = useState({ title: "", date: "", time: "", repeat: "never" });
   const reactionRef = useRef(null);
 
-  // Scroll naar reaction prompt zodra die verschijnt
   useEffect(() => {
     if (pendingReactionId && reactionRef.current) {
       setTimeout(() => {
@@ -41,12 +40,10 @@ export default function RemindersTab({
     setShowAddReminder(false);
   }
 
-  // Sortering: open reminders op datum asc (eerstvolgende bovenaan)
   const openReminders = reminders
     .filter((r) => !r.done)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  // Sortering: completed reminders op completed_at desc (meest recent bovenaan)
   const completedReminders = reminders
     .filter((r) => r.done)
     .sort((a, b) => {
@@ -89,18 +86,11 @@ export default function RemindersTab({
                 {r.repeat !== "never" && <span style={{ fontSize: 11, color: T.accent, background: T.accentSoft, padding: "2px 8px", borderRadius: 10 }}>↻ {r.repeat}</span>}
               </div>
               {pendingReactionId === r.id && (
-                <div
-                  ref={reactionRef}
-                  style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}
-                >
+                <div ref={reactionRef} style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}>
                   <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>How did she react?</div>
                   <div style={{ display: "flex", gap: 16 }}>
                     {[{ emoji: "😠", value: 1 }, { emoji: "😐", value: 2 }, { emoji: "😊", value: 3 }].map(({ emoji, value }) => (
-                      <button
-                        key={value}
-                        onClick={() => saveReaction(r.id, value)}
-                        style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
-                      >
+                      <button key={value} onClick={() => saveReaction(r.id, value)} style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
                         {emoji}
                       </button>
                     ))}
@@ -120,24 +110,15 @@ export default function RemindersTab({
               <button
                 onClick={() => toggleReminder(r.id)}
                 style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, border: `2px solid ${T.green}`, background: T.green + "33", cursor: "pointer", fontSize: 12, color: T.green, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}
-              >
-                ✓
-              </button>
+              >✓</button>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, color: T.muted, textDecoration: "line-through" }}>{r.title}</div>
                 {pendingReactionId === r.id && (
-                  <div
-                    ref={reactionRef}
-                    style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}
-                  >
+                  <div ref={reactionRef} style={{ marginTop: 12, padding: "12px 14px", background: "#ffffff08", borderRadius: 12 }}>
                     <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>How did she react?</div>
                     <div style={{ display: "flex", gap: 16 }}>
                       {[{ emoji: "😠", value: 1 }, { emoji: "😐", value: 2 }, { emoji: "😊", value: 3 }].map(({ emoji, value }) => (
-                        <button
-                          key={value}
-                          onClick={(e) => { e.stopPropagation(); saveReaction(r.id, value); }}
-                          style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
-                        >
+                        <button key={value} onClick={(e) => { e.stopPropagation(); saveReaction(r.id, value); }} style={{ fontSize: 26, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}>
                           {emoji}
                         </button>
                       ))}
@@ -151,8 +132,14 @@ export default function RemindersTab({
       </>)}
 
       {showAddReminder && (
-        <div style={css.modal} onClick={() => setShowAddReminder(false)}>
-          <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div
+          style={{ ...css.modal, alignItems: "flex-end", overflowY: "auto" }}
+          onClick={() => setShowAddReminder(false)}
+        >
+          <div
+            style={{ ...css.modalBox, maxHeight: "90vh", overflowY: "auto", width: "100%", maxWidth: 420, boxSizing: "border-box" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ fontSize: 20, fontWeight: "bold", color: T.accent, marginBottom: 6 }}>New Reminder</div>
             <div style={{ fontSize: 13, color: T.muted, marginBottom: 18 }}>Set a personal reminder for yourself.</div>
             <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>What do you need to do?</label>
