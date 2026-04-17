@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { T, css } from "../theme";
 import TheCode from "./TheCode";
@@ -14,7 +14,23 @@ export default function SettingsTab({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [partnerName, setPartnerName] = useState("");
+  const [partnerBirthday, setPartnerBirthday] = useState("");
+  const [partnerAnniversary, setPartnerAnniversary] = useState("");
+  const [partnerSaved, setPartnerSaved] = useState(false);
 
+  useEffect(() => {
+  async function loadPartnerData() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: partner } = await supabase.from("partners").select("name, birthday").eq("user_id", user.id).single();
+    if (partner) { setPartnerName(partner.name || ""); setPartnerBirthday(partner.birthday || ""); }
+    const { data: anniversary } = await supabase.from("events").select("date").eq("user_id", user.id).eq("category", "anniversary").single();
+    if (anniversary) setPartnerAnniversary(anniversary.date || "");
+  }
+  loadPartnerData();
+}, []);
+  
   async function savePreferences() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
@@ -27,7 +43,23 @@ export default function SettingsTab({
   setPrefSaved(true);
   setTimeout(() => setPrefSaved(false), 2000);
 }
-
+async function savePartnerData() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("partners").update({ name: partnerName, birthday: partnerBirthday }).eq("user_id", user.id);
+  const { data: existing } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "anniversary").single();
+  if (existing) {
+    await supabase.from("events").update({ date: partnerAnniversary, name: "Anniversary" }).eq("id", existing.id);
+  } else if (partnerAnniversary) {
+    await supabase.from("events").insert({ user_id: user.id, name: "Anniversary", date: partnerAnniversary, days_before: 7, emoji: "💍", category: "anniversary", repeat_yearly: true });
+  }
+  const { data: birthdayEvent } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "birthday").single();
+  if (birthdayEvent) {
+    await supabase.from("events").update({ date: partnerBirthday, name: `${partnerName}'s Birthday` }).eq("id", birthdayEvent.id);
+  }
+  setPartnerSaved(true);
+  setTimeout(() => setPartnerSaved(false), 2000);
+}
   async function handleDeleteAccount() {
     setDeleteLoading(true); setDeleteError("");
     try {
@@ -91,7 +123,18 @@ export default function SettingsTab({
       <button style={{ ...css.btn, marginTop: 8, background: prefSaved ? T.green : T.accent }} onClick={savePreferences}>
         {prefSaved ? "✓ Saved" : "Save preferences"}
       </button>
-
+<div style={{ ...css.sectionTitle, marginTop: 24 }}>Partner details</div>
+<div style={css.card}>
+  <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>Her name</label>
+  <input style={css.input} value={partnerName} onChange={(e) => setPartnerName(e.target.value)} placeholder="Her name" />
+  <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>Her birthday</label>
+  <input style={css.input} type="date" value={partnerBirthday} onChange={(e) => setPartnerBirthday(e.target.value)} />
+  <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>Anniversary</label>
+  <input style={{ ...css.input, marginBottom: 0 }} type="date" value={partnerAnniversary} onChange={(e) => setPartnerAnniversary(e.target.value)} />
+</div>
+<button style={{ ...css.btn, marginTop: 8, background: partnerSaved ? T.green : T.accent }} onClick={savePartnerData}>
+  {partnerSaved ? "✓ Saved" : "Save partner details"}
+</button>
       <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
       <div style={css.card}>
         {[{ label: "📄 Terms of Use", sub: "Your rights and responsibilities", url: "https://goddessalert.com/terms.html" }, { label: "🔒 Privacy Policy", sub: "How we handle your data", url: "https://goddessalert.com/privacy.html" }].map((item, i) => (
