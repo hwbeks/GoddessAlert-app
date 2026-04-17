@@ -4,6 +4,7 @@ import TheCode from "./TheCode";
 export default function HealthTab({
   healthScore,
   scoreColor,
+  scoreZone,
   name,
   streak,
   longestStreak,
@@ -19,9 +20,17 @@ export default function HealthTab({
       <div style={css.card}>
         <div style={{ textAlign: "center", padding: "20px 0" }}>
           <div style={{ fontSize: 64, fontWeight: "bold", color: scoreColor }}>{healthScore}</div>
-          <div style={{ fontSize: 14, color: T.muted, marginTop: 4 }}>out of 100</div>
+          <div style={{ fontSize: 11, color: scoreColor, marginTop: 4, letterSpacing: 2, textTransform: "uppercase" }}>
+            {scoreZone || "Getting there"}
+          </div>
           <div style={{ fontSize: 15, color: T.text, marginTop: 12, fontStyle: "italic" }}>
-            {healthScore >= 70 ? `${name} feels seen. Keep it up.` : healthScore >= 40 ? "Getting there — stay consistent." : "Time to step up, brother."}
+            {healthScore >= 85
+              ? `${name} feels the difference. Keep going.`
+              : healthScore >= 70
+              ? `${name} feels seen. Stay consistent.`
+              : healthScore >= 50
+              ? "Getting there — small actions add up."
+              : "Time to step up. Start with today."}
           </div>
         </div>
       </div>
