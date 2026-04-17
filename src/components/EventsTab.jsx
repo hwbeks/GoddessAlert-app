@@ -17,17 +17,39 @@ export default function EventsTab({ events, setEvents }) {
 
   async function addEvent() {
     if (!newEvent.name || !newEvent.date) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data, error } = await supabase.from("events").insert({ user_id: user.id, name: newEvent.name, date: newEvent.date, days_before: newEvent.daysBefore || 7, emoji: "📅", repeat_yearly: true }).select().single();
-      if (error) console.error("Event insert error:", error);
-      if (data) setEvents((e) => [...e, data].sort((a, b) => {
-  const daysA = daysUntil(a.date);
-  const daysB = daysUntil(b.date);
-  return daysA - daysB;
-}));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase.from("events").insert({
+        user_id: user.id,
+        name: newEvent.name,
+        date: newEvent.date,
+        days_before: newEvent.daysBefore || 7,
+        emoji: "📅",
+        repeat_yearly: true
+      });
+
+      if (error) {
+        console.error("Event insert error:", error);
+        return;
+      }
+
+      // ✅ Fix: verse select na insert — geen .select().single() vanwege RLS
+      const { data: fresh } = await supabase
+        .from("events")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (fresh) {
+        setEvents([...fresh].sort((a, b) => daysUntil(a.date) - daysUntil(b.date)));
+      }
+    } catch (err) {
+      console.error("addEvent error:", err);
     }
-    setNewEvent({ name: "", date: "", daysBefore: 7 }); setShowAddModal(false);
+
+    setNewEvent({ name: "", date: "", daysBefore: 7 });
+    setShowAddModal(false);
   }
 
   return (
@@ -36,6 +58,7 @@ export default function EventsTab({ events, setEvents }) {
         <div style={css.sectionTitle}>Upcoming Events</div>
         <button onClick={() => setShowAddModal(true)} style={{ background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "5px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>+ Add</button>
       </div>
+
       {events.map((ev) => {
         const days = daysUntil(ev.date);
         return (
@@ -49,13 +72,17 @@ export default function EventsTab({ events, setEvents }) {
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: "bold", color: days <= 3 ? T.red : days <= 7 ? T.accent : T.green }}>{days}</div>
-                <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>days</div>
+                <div style={{ fontSize: 28, fontWeight: "bold", color: days <= 3 ? T.red : days <= 7 ? T.accent : T.green }}>
+                  {days === 0 ? "🎉" : days}
+                </div>
+                <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>
+                  {days === 0 ? "today" : "days"}
+                </div>
               </div>
             </div>
             {days <= 7 && (
               <div style={{ marginTop: 10, padding: "8px 12px", background: T.red + "15", borderRadius: 8, fontSize: 12, color: T.red }}>
-                {daysUntil(ev.date) === 0 ? "🎉 Today is the day! Don't forget to make it special." : "⚡ Action needed — don't wait any longer"}
+                {days === 0 ? "🎉 Today is the day! Don't forget to make it special." : "⚡ Action needed — don't wait any longer"}
               </div>
             )}
           </div>
