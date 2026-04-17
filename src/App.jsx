@@ -482,7 +482,7 @@ function MainApp({ partnerData }) {
 
   async function toggleReminder(id) {
   const newDone = !reminders.find((x) => x.id === id)?.done;
-  setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone } : x)));
+  setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone, completed_at: newDone ? new Date().toISOString() : null } : x)));
   const { error } = await supabase.from("reminders")
     .update({ done: newDone, completed_at: newDone ? new Date().toISOString() : null })
     .eq("id", id);
