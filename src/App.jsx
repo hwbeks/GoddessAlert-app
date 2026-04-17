@@ -706,6 +706,7 @@ function MainApp({ partnerData }) {
           setTipIndex={setTipIndex}
           events={events}
           rateTip={rateTip}
+          setScoreVersion={setScoreVersion}
         />
       )}
 
