@@ -26,6 +26,7 @@ export default function HomeTab({
   setTipIndex,
   events,
   rateTip,
+  setScoreVersion,
 }) {
   const currentTip = tips.length > 0 ? tips[tipIndex % tips.length] : null;
 
@@ -37,18 +38,18 @@ export default function HomeTab({
         {!weeklyRating ? (
           <div style={{ display: "flex", gap: 8 }}>
             {[
-              { label: "😬", sub: "Poor", val: "poor", pts: -8 },
-              { label: "😐", sub: "OK", val: "ok", pts: 0 },
-              { label: "😊", sub: "Good", val: "good", pts: 8 },
-              { label: "🔥", sub: "Great", val: "great", pts: 16 },
+              { label: "😬", sub: "Poor", val: "poor", score: 1 },
+              { label: "😐", sub: "OK", val: "ok", score: 2 },
+              { label: "😊", sub: "Good", val: "good", score: 3 },
+              { label: "🔥", sub: "Great", val: "great", score: 4 },
             ].map((opt) => (
               <button key={opt.val} onClick={async () => {
                 setWeeklyRating(opt.val);
-                setScore((s) => Math.min(100, Math.max(0, s + opt.pts)));
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
-                  const sv = opt.val === "great" ? 4 : opt.val === "good" ? 3 : opt.val === "ok" ? 2 : 1;
-                  await supabase.from("health_scores").insert({ user_id: user.id, score: sv });
+                  await supabase.from("health_scores").insert({ user_id: user.id, score: opt.score });
+                  // ✅ Fix: score herberekenen via scoreVersion ipv lokale update
+                  if (setScoreVersion) setScoreVersion((v) => v + 1);
                 }
               }} style={{ flex: 1, background: T.accentSoft, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 4px", color: T.text, cursor: "pointer", fontFamily: "Georgia, serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                 <span style={{ fontSize: 22 }}>{opt.label}</span>
