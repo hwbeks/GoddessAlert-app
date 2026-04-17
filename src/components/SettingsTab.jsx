@@ -46,16 +46,21 @@ export default function SettingsTab({
 async function savePartnerData() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  await supabase.from("partners").update({ name: partnerName, birthday: partnerBirthday }).eq("user_id", user.id);
-  const { data: existing } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "anniversary").single();
-  if (existing) {
-    await supabase.from("events").update({ date: partnerAnniversary, name: "Anniversary" }).eq("id", existing.id);
+  const { data: existingPartner } = await supabase.from("partners").select("user_id").eq("user_id", user.id).single();
+  if (existingPartner) {
+    await supabase.from("partners").update({ name: partnerName, birthday: partnerBirthday }).eq("user_id", user.id);
+  } else {
+    await supabase.from("partners").insert({ user_id: user.id, name: partnerName, birthday: partnerBirthday });
+  }
+  const { data: existingAnniversary } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "anniversary").single();
+  if (existingAnniversary) {
+    await supabase.from("events").update({ date: partnerAnniversary, name: "Anniversary" }).eq("id", existingAnniversary.id);
   } else if (partnerAnniversary) {
     await supabase.from("events").insert({ user_id: user.id, name: "Anniversary", date: partnerAnniversary, days_before: 7, emoji: "💍", category: "anniversary", repeat_yearly: true });
   }
-  const { data: birthdayEvent } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "birthday").single();
-  if (birthdayEvent) {
-    await supabase.from("events").update({ date: partnerBirthday, name: `${partnerName}'s Birthday` }).eq("id", birthdayEvent.id);
+  const { data: existingBirthday } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "birthday").single();
+  if (existingBirthday) {
+    await supabase.from("events").update({ date: partnerBirthday, name: `${partnerName}'s Birthday` }).eq("id", existingBirthday.id);
   }
   setPartnerSaved(true);
   setTimeout(() => setPartnerSaved(false), 2000);
