@@ -48,7 +48,8 @@ export default function HomeTab({
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                   await supabase.from("health_scores").insert({ user_id: user.id, score: opt.score });
-                  // ✅ Fix: score herberekenen via scoreVersion ipv lokale update
+                  // ✅ Fix: kleine delay zodat insert volledig is voor herberekening
+                  await new Promise((resolve) => setTimeout(resolve, 500));
                   if (setScoreVersion) setScoreVersion((v) => v + 1);
                 }
               }} style={{ flex: 1, background: T.accentSoft, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 4px", color: T.text, cursor: "pointer", fontFamily: "Georgia, serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
