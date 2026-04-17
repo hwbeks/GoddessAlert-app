@@ -481,12 +481,15 @@ function MainApp({ partnerData }) {
   }
 
   async function toggleReminder(id) {
-    const newDone = !reminders.find((x) => x.id === id)?.done;
-    setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone } : x)));
-    await supabase.from("reminders").update({ done: newDone, completed_at: newDone ? new Date().toISOString() : null }).eq("id", id);
-    if (newDone) setPendingReactionId(id);
-    else setPendingReactionId(null);
-  }
+  const newDone = !reminders.find((x) => x.id === id)?.done;
+  setReminders((r) => r.map((x) => (x.id === id ? { ...x, done: newDone } : x)));
+  const { error } = await supabase.from("reminders")
+    .update({ done: newDone, completed_at: newDone ? new Date().toISOString() : null })
+    .eq("id", id);
+  console.log("toggleReminder:", { id, newDone, error });
+  if (newDone) setPendingReactionId(id);
+  else setPendingReactionId(null);
+}
 
  async function saveReaction(id, reaction) {
   await supabase.from("reminders").update({ partner_reaction: reaction }).eq("id", id);
