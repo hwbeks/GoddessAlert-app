@@ -24,20 +24,33 @@ export default function RemindersTab({
 
   async function addReminder() {
     if (!newReminder.title || !newReminder.date || !newReminder.time) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data, error } = await supabase.from("reminders").insert({
-      user_id: user.id,
-      title: newReminder.title,
-      date: newReminder.date,
-      time: newReminder.time,
-      repeat: newReminder.repeat,
-      done: false
-    }).select().single();
-    if (error) console.error("Reminder insert error:", error);
-    if (data) setReminders((r) => [data, ...r]);
-    setNewReminder({ title: "", date: "", time: "", repeat: "never" });
-    setShowAddReminder(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase.from("reminders").insert({
+        user_id: user.id,
+        title: newReminder.title,
+        date: newReminder.date,
+        time: newReminder.time,
+        repeat: newReminder.repeat,
+        done: false
+      });
+      if (error) {
+        console.error("Reminder insert error:", error);
+        return;
+      }
+      // Haal reminders opnieuw op uit database — vermijdt RLS issues met .select().single()
+      const { data: fresh } = await supabase
+        .from("reminders")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: true });
+      if (fresh) setReminders(fresh);
+      setNewReminder({ title: "", date: "", time: "", repeat: "never" });
+      setShowAddReminder(false);
+    } catch (err) {
+      console.error("addReminder error:", err);
+    }
   }
 
   const openReminders = reminders
