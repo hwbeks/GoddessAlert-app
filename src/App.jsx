@@ -261,31 +261,111 @@ function MainApp({ partnerData }) {
   }, []);
 
   // ── Score berekening — herberekent bij scoreVersion increment ──
-  useEffect(() => {
-    async function calculateScore() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      let score = 50;
-      const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoISO = sevenDaysAgo.toISOString();
-      const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
-      const { data: checkins } = await supabase.from("health_scores").select("score").eq("user_id", user.id).gte("recorded_at", sevenDaysAgoISO).order("recorded_at", { ascending: false }).limit(1);
-      if (checkins && checkins.length > 0) { const c = checkins[0]; if (c.score >= 4) score += 10; else if (c.score === 3) score += 5; else if (c.score <= 1) score -= 5; }
-      const { data: remindersData } = await supabase.from("reminders").select("done, date, partner_reaction").eq("user_id", user.id).gte("date", sevenDaysAgoDate);
-      if (remindersData) {
-        for (const r of remindersData) {
-          if (r.done) score += 5; else score -= 3;
-          if (r.partner_reaction === 1) score -= 5;
-          else if (r.partner_reaction === 2) score += 3;
-          else if (r.partner_reaction === 3) score += 10;
+  // ============================================================
+// VERVANGT REGELS 264-288 IN APP.JSX
+// Plak dit ter vervanging van het hele useEffect blok
+// dat begint op regel 264 en eindigt op regel 288
+// ============================================================
+
+    useEffect(() => {
+      async function calculateScore() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+        const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+
+        // --- Startwaarde op basis van assessment ---
+        let baseScore = 50;
+        const { data: latestAssessment } = await supabase
+          .from("assessments")
+          .select("attentiveness, gestures, presence, awareness, priority, appreciation")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestAssessment) {
+          const vals = [
+            latestAssessment.attentiveness,
+            latestAssessment.gestures,
+            latestAssessment.presence,
+            latestAssessment.awareness,
+            latestAssessment.priority,
+            latestAssessment.appreciation,
+          ].filter(Boolean);
+          const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+          if (avg <= 2.0) baseScore = 40;
+          else if (avg <= 3.0) baseScore = 50;
+          else if (avg <= 4.0) baseScore = 55;
+          else baseScore = 60;
         }
+
+        let score = baseScore;
+
+        // --- Health check-in afgelopen 7 dagen ---
+        const { data: checkins } = await supabase
+          .from("health_scores")
+          .select("score, recorded_at")
+          .eq("user_id", user.id)
+          .gte("recorded_at", sevenDaysAgoISO)
+          .order("recorded_at", { ascending: false })
+          .limit(1);
+
+        if (checkins && checkins.length > 0) {
+          const c = checkins[0];
+          if (c.score >= 4) score += 8;
+          else if (c.score === 3) score += 4;
+          else if (c.score <= 2) score -= 4;
+        } else {
+          // Geen check-in deze week
+          score -= 6;
+        }
+
+        // --- Reminders afgelopen 7 dagen ---
+        const { data: remindersData } = await supabase
+          .from("reminders")
+          .select("done, date, partner_reaction")
+          .eq("user_id", user.id)
+          .gte("date", sevenDaysAgoDate);
+
+        if (remindersData) {
+          let reminderDonePoints = 0;
+          let reminderMissedPoints = 0;
+
+          for (const r of remindersData) {
+            if (r.done) {
+              reminderDonePoints += 4;
+            } else {
+              reminderMissedPoints -= 3;
+            }
+
+            // Partner reactie
+            if (r.partner_reaction === 1) score -= 6;
+            else if (r.partner_reaction === 2) score += 2;
+            else if (r.partner_reaction === 3) score += 8;
+          }
+
+          // Max +12 voor gedane reminders, max -9 voor gemiste
+          score += Math.min(12, reminderDonePoints);
+          score += Math.max(-9, reminderMissedPoints);
+        }
+
+        // --- Geen enkele activiteit afgelopen 7 dagen ---
+        const totalActivity = (checkins?.length || 0) + (remindersData?.length || 0);
+        if (totalActivity === 0) score -= 4;
+
+        // --- Plafond en bodem ---
+        score = Math.max(10, Math.min(95, score));
+
+        setScore(score);
+        setScoreLoaded(true);
       }
-      const { data: ratings } = await supabase.from("tip_ratings").select("rating, created_at").eq("user_id", user.id).gte("created_at", sevenDaysAgoISO);
-      if (ratings) { score += ratings.length * 5; for (const r of ratings) { if (r.rating === "up") score += 2; } }
-      setScore(Math.max(0, Math.min(100, score))); setScoreLoaded(true);
-    }
-    calculateScore();
-  }, [scoreVersion]);
+
+      calculateScore();
+    }, [scoreVersion]);
 
   useEffect(() => {
     async function loadReminders() {
