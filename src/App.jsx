@@ -5,6 +5,7 @@ import SettingsTab from "./components/SettingsTab";
 import RemindersTab from "./components/RemindersTab";
 import HealthTab from "./components/HealthTab";
 import HomeTab from "./components/HomeTab";
+import SelfAssessmentScreen from "./components/SelfAssessmentScreen";
 import { stripePromise, PRICES } from "./stripe";
 import { useState, useEffect } from "react";
 import { T, css } from "./theme";
@@ -689,16 +690,36 @@ export default function GoddessAlert() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        const { data: partner } = await supabase.from("partners").select("*").eq("user_id", session.user.id).single();
-        setScreen(partner ? "app" : "onboarding");
+        const { data: partner } = await supabase.from("partners").select("*").eq("user_id", session.user.id).maybeSingle();
+if (!partner) {
+  setScreen("onboarding");
+} else {
+  const { data: prefs } = await supabase
+    .from("user_preferences")
+    .select("assessment_completed_at, onboarding_skipped_assessment")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  const assessmentDone = prefs?.assessment_completed_at || prefs?.onboarding_skipped_assessment;
+  setScreen(assessmentDone ? "app" : "assessment");
+}
         if (partner) setPartnerData({ herName: partner.name, herBirthday: partner.birthday });
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        const { data: partner } = await supabase.from("partners").select("*").eq("user_id", session.user.id).single();
-        setScreen(partner ? "app" : "onboarding");
+        const { data: partner } = await supabase.from("partners").select("*").eq("user_id", session.user.id).maybeSingle();
+if (!partner) {
+  setScreen("onboarding");
+} else {
+  const { data: prefs } = await supabase
+    .from("user_preferences")
+    .select("assessment_completed_at, onboarding_skipped_assessment")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  const assessmentDone = prefs?.assessment_completed_at || prefs?.onboarding_skipped_assessment;
+  setScreen(assessmentDone ? "app" : "assessment");
+}
         if (partner) setPartnerData({ herName: partner.name, herBirthday: partner.birthday });
       }
     });
@@ -709,8 +730,14 @@ export default function GoddessAlert() {
   return (
     <div style={css.app}>
       {screen === "login" && <LoginScreen onNext={() => setScreen("onboarding")} />}
-      {screen === "onboarding" && <OnboardingScreen onDone={(data) => { setPartnerData(data); setScreen("app"); }} />}
-      {screen === "app" && <MainApp partnerData={partnerData} />}
+{screen === "onboarding" && <OnboardingScreen onDone={(data) => { setPartnerData(data); setScreen("assessment"); }} />}
+{screen === "assessment" && (
+  <SelfAssessmentScreen
+    onDone={() => setScreen("app")}
+    onSkip={() => setScreen("app")}
+  />
+)}
+{screen === "app" && <MainApp partnerData={partnerData} />}
     </div>
   );
 }
