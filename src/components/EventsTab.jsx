@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabase";
 import { T, css } from "../theme";
+import UpsellPrompt from "./UpsellPrompt";
 
 function daysUntil(dateStr) {
   const today = new Date();
@@ -11,8 +12,9 @@ function daysUntil(dateStr) {
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export default function EventsTab({ events, setEvents }) {
+export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
   const [newEvent, setNewEvent] = useState({ name: "", date: "", daysBefore: 7 });
 
   async function addEvent() {
@@ -35,7 +37,6 @@ export default function EventsTab({ events, setEvents }) {
         return;
       }
 
-      // ✅ Fix: verse select na insert — geen .select().single() vanwege RLS
       const { data: fresh } = await supabase
         .from("events")
         .select("*")
@@ -52,12 +53,33 @@ export default function EventsTab({ events, setEvents }) {
     setShowAddModal(false);
   }
 
+  function handleAddClick() {
+    if (!isPremium) {
+      setShowUpsell(true);
+    } else {
+      setShowUpsell(false);
+      setShowAddModal(true);
+    }
+  }
+
   return (
     <div style={{ padding: "8px 24px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={css.sectionTitle}>Upcoming Events</div>
-        <button onClick={() => setShowAddModal(true)} style={{ background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "5px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>+ Add</button>
+        <button
+          onClick={handleAddClick}
+          style={{ background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "5px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}
+        >
+          + Add
+        </button>
       </div>
+
+      {showUpsell && (
+        <UpsellPrompt
+          message="Want to add more special moments? Upgrade to Premium for unlimited events."
+          onUpgrade={onUpgrade}
+        />
+      )}
 
       {events.map((ev) => {
         const days = daysUntil(ev.date);
