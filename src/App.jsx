@@ -609,6 +609,7 @@ function MainApp({ partnerData }) {
     if (!subscriptionLoaded) return true;
     if (!subscription) return true;
     const { status, trial_end, current_period_end } = subscription;
+    if (status === "free") return true;
     if (status === "trialing" && trial_end && new Date(trial_end) > new Date()) return true;
     if (status === "active") return true;
     if (status === "past_due") return true;
