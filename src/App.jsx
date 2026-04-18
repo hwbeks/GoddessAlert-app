@@ -113,6 +113,20 @@ function OnboardingScreen({ onDone }) {
         }
       }
     }
+    const { data: existingSub } = await supabase
+      .from("subscriptions")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!existingSub) {
+      await supabase.from("subscriptions").insert({
+        user_id: user.id,
+        status: "free",
+        plan: "free",
+        updated_at: new Date().toISOString(),
+      });
+    }
     setSaving(false);
     onDone(data);
   }
@@ -601,7 +615,17 @@ function MainApp({ partnerData }) {
     if (status === "canceled" && current_period_end && new Date(current_period_end) > new Date()) return true;
     return false;
   }
-
+function isPremium() {
+  if (!subscriptionLoaded) return true;
+  if (!subscription) return false;
+  const { status, trial_end, current_period_end } = subscription;
+  if (status === "free") return false;
+  if (status === "trialing" && trial_end && new Date(trial_end) > new Date()) return true;
+  if (status === "active") return true;
+  if (status === "past_due") return true;
+  if (status === "canceled" && current_period_end && new Date(current_period_end) > new Date()) return true;
+  return false;
+}
   async function handleUpgrade(plan) {
   console.log("handleUpgrade aangeroepen:", plan);
   const { data: { user } } = await supabase.auth.getUser();
@@ -777,13 +801,18 @@ function MainApp({ partnerData }) {
           events={events}
           rateTip={rateTip}
           setScoreVersion={setScoreVersion}
-          isPremium={false}
+         isPremium={isPremium()}
         />
       )}
 
       {/* EVENTS TAB */}
       {tab === "events" && (
-        <EventsTab events={events} setEvents={setEvents} />
+       <EventsTab
+  events={events}
+  setEvents={setEvents}
+  isPremium={isPremium()}
+  onUpgrade={() => handleUpgrade("monthly")}
+/>
       )}
 
       {/* REMINDERS TAB */}
@@ -795,6 +824,8 @@ function MainApp({ partnerData }) {
           saveReaction={saveReaction}
           pendingReactionId={pendingReactionId}
           nudgeMessage={nudgeMessage}
+          isPremium={isPremium()}
+onUpgrade={() => handleUpgrade("monthly")}
         />
       )}
 
@@ -828,6 +859,8 @@ function MainApp({ partnerData }) {
           showRatingThanks={showRatingThanks}
           showTheCode={showTheCode}
           setShowTheCode={setShowTheCode}
+          isPremium={isPremium()}
+onUpgrade={() => handleUpgrade("monthly")}
         />
       )}
 
