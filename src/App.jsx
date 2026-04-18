@@ -150,11 +150,11 @@ function OnboardingScreen({ onDone }) {
 function SubscriptionBanner({ subscription, onUpgrade }) {
   const upgradeButtons = (
     <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-      <button onClick={() => onUpgrade("monthly")} style={{ flex: 1, background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "8px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>€4,99/maand</button>
-      <button onClick={() => onUpgrade("yearly")} style={{ flex: 1, background: "transparent", color: T.accent, border: `1px solid ${T.accent}`, borderRadius: 20, padding: "8px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>€29,99/jaar</button>
+      <button onClick={() => onUpgrade("monthly")} style={{ flex: 1, background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "8px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>€4.99/month</button>
+      <button onClick={() => onUpgrade("yearly")} style={{ flex: 1, background: "transparent", color: T.accent, border: `1px solid ${T.accent}`, borderRadius: 20, padding: "8px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>€29.99/year</button>
     </div>
   );
-
+ 
   if (!subscription) {
     return (
       <div style={{ padding: "0 24px 8px" }}>
@@ -168,10 +168,10 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
       </div>
     );
   }
-
+ 
   const { status, trial_end, current_period_end } = subscription;
   if (status === "active" && !trial_end) return null;
-
+ 
   if (status === "trialing" && trial_end) {
     const daysLeft = daysUntilDate(trial_end);
     return (
@@ -186,31 +186,31 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
       </div>
     );
   }
-
+ 
   if (status === "past_due") {
     return (
       <div style={{ padding: "0 24px 8px" }}>
         <div style={{ background: "#1a0000", border: `1px solid ${T.red}`, borderRadius: 16, padding: "14px 18px" }}>
-          <div style={{ fontSize: 13, fontWeight: "bold", color: T.red, marginBottom: 4 }}>⚠️ Betaling mislukt</div>
-          <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.6 }}>Je betaling kon niet worden verwerkt. Update je betaalgegevens om je toegang te behouden.</div>
+          <div style={{ fontSize: 13, fontWeight: "bold", color: T.red, marginBottom: 4 }}>⚠️ Payment failed</div>
+          <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.6 }}>Your payment could not be processed. Please update your payment details to keep your access.</div>
         </div>
       </div>
     );
   }
-
+ 
   if (status === "canceled" && current_period_end) {
     const daysLeft = daysUntilDate(current_period_end);
     if (daysLeft > 0) {
       return (
         <div style={{ padding: "0 24px 8px" }}>
           <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "14px 18px" }}>
-            <div style={{ fontSize: 13, color: T.muted }}>Je abonnement is opgezegd. Je hebt nog toegang tot <span style={{ color: T.text }}>{daysLeft} dag{daysLeft === 1 ? "" : "en"}</span>.</div>
+            <div style={{ fontSize: 13, color: T.muted }}>Your subscription has been cancelled. You still have access for <span style={{ color: T.text }}>{daysLeft} day{daysLeft === 1 ? "" : "s"}</span>.</div>
           </div>
         </div>
       );
     }
   }
-
+ 
   return null;
 }
 
@@ -220,11 +220,11 @@ function NoAccessScreen({ onUpgrade }) {
   return (
     <div style={{ ...css.page, justifyContent: "center", textAlign: "center" }}>
       <div style={{ fontSize: 48, marginBottom: 24 }}>🔒</div>
-      <div style={{ fontSize: 22, color: T.accent, fontStyle: "italic", marginBottom: 12 }}>Je proefperiode is verlopen</div>
-      <div style={{ fontSize: 14, color: T.muted, lineHeight: 1.8, marginBottom: 32 }}>Upgrade naar Premium om je tips, herinneringen en relatiescore te blijven gebruiken.</div>
+      <div style={{ fontSize: 22, color: T.accent, fontStyle: "italic", marginBottom: 12 }}>Your trial has expired</div>
+      <div style={{ fontSize: 14, color: T.muted, lineHeight: 1.8, marginBottom: 32 }}>Upgrade to Premium to keep using your tips, reminders, and relationship health score.</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-        <button onClick={() => onUpgrade("monthly")} style={css.btn}>€4,99 per maand</button>
-        <button onClick={() => onUpgrade("yearly")} style={{ ...css.btn, background: "transparent", color: T.accent, border: `1px solid ${T.accent}` }}>€29,99 per jaar — beste waarde</button>
+        <button onClick={() => onUpgrade("monthly")} style={css.btn}>€4.99 per month</button>
+        <button onClick={() => onUpgrade("yearly")} style={{ ...css.btn, background: "transparent", color: T.accent, border: `1px solid ${T.accent}` }}>€29.99 per year — best value</button>
       </div>
     </div>
   );
