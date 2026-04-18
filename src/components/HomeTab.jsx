@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { T, css } from "../theme";
 
@@ -27,11 +28,89 @@ export default function HomeTab({
   events,
   rateTip,
   setScoreVersion,
+  isPremium,
 }) {
   const currentTip = tips.length > 0 ? tips[tipIndex % tips.length] : null;
 
+  const [daysSinceSignup, setDaysSinceSignup] = useState(null);
+  const [assessmentDone, setAssessmentDone] = useState(true);
+  const [showNudgeModal, setShowNudgeModal] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+
+  useEffect(() => {
+    async function loadNudgeData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Dagen sinds registratie
+        const { data: userData } = await supabase
+          .from("users")
+          .select("created_at")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (userData?.created_at) {
+          const created = new Date(userData.created_at);
+          const now = new Date();
+          const days = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+          setDaysSinceSignup(days);
+
+          // Dag 5 modal — alleen tonen als nog niet gedismissed
+          if (days >= 5 && days < 7) {
+            setShowNudgeModal(true);
+          }
+        }
+
+        // Assessment status
+        const { data: prefs } = await supabase
+          .from("user_preferences")
+          .select("assessment_completed_at, onboarding_skipped_assessment")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        setAssessmentDone(!!prefs?.assessment_completed_at);
+
+      } catch (err) {
+        console.error("loadNudgeData error:", err);
+      }
+    }
+    loadNudgeData();
+  }, []);
+
+  const showDay2Banner = daysSinceSignup === 2 && !assessmentDone;
+  const showDay6Message = daysSinceSignup >= 6 && !assessmentDone;
+
   return (
     <div style={{ padding: "8px 24px" }}>
+
+      {/* ── Dag 2 banner — assessment nudge ── */}
+      {showDay2Banner && (
+        <div style={{ background: T.accentSoft, border: `1px solid ${T.accent}44`, borderRadius: 14, padding: "14px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: T.accent, fontWeight: "bold", marginBottom: 3 }}>Know yourself first</div>
+            <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.5 }}>Take a 2-min assessment to get tips tailored to your relationship.</div>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "7px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif", whiteSpace: "nowrap" }}
+          >
+            Start →
+          </button>
+        </div>
+      )}
+
+      {/* ── Dag 6 — trial koppeling boodschap ── */}
+      {showDay6Message && (
+        <div style={{ background: "#1a1200", border: `1px solid ${T.premium}44`, borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontSize: 13, color: T.premium, fontWeight: "bold", marginBottom: 3 }}>Your trial ends soon</div>
+          <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
+            Complete your assessment now — your results will be waiting if you upgrade to premium.
+          </div>
+        </div>
+      )}
+
+      {/* ── Weekly Check-in ── */}
       <div style={css.sectionTitle}>Weekly Check-in</div>
       <div style={weeklyRating ? css.cardAccent : css.card}>
         <div style={{ fontSize: 14, color: T.accent, fontStyle: "italic", marginBottom: 10 }}>"How attentive were you this week?"</div>
@@ -48,7 +127,6 @@ export default function HomeTab({
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                   await supabase.from("health_scores").insert({ user_id: user.id, score: opt.score });
-                  // ✅ Fix: kleine delay zodat insert volledig is voor herberekening
                   await new Promise((resolve) => setTimeout(resolve, 500));
                   if (setScoreVersion) setScoreVersion((v) => v + 1);
                 }
@@ -79,6 +157,7 @@ export default function HomeTab({
         )}
       </div>
 
+      {/* ── Today's Gesture ── */}
       <div style={{ ...css.sectionTitle, marginTop: 16 }}>Today's Gesture</div>
 
       {!gestureDone && !showRatingThanks && tipIndex === 0 && currentTip && (
@@ -132,6 +211,7 @@ export default function HomeTab({
         </div>
       )}
 
+      {/* ── Coming up events ── */}
       {events.filter((e) => daysUntil(e.date) <= 14).slice(0, 1).map((ev) => (
         <div key={ev.id} style={{ ...css.cardAccent, marginTop: 8 }}>
           <div style={{ fontSize: 11, color: T.red, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>⚡ Coming up</div>
@@ -150,6 +230,62 @@ export default function HomeTab({
           </div>
         </div>
       ))}
+
+      {/* ── Dag 5 modal ── */}
+      {showNudgeModal && !nudgeDismissed && (
+        <div style={css.modal} onClick={() => setNudgeDismissed(true)}>
+          <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🪞</div>
+              <div style={{ fontSize: 18, color: T.accent, fontWeight: "bold", marginBottom: 8 }}>
+                You've been using GoddessAlert for 5 days
+              </div>
+              <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.7 }}>
+                Men who complete the self assessment get tips that actually fit their relationship. It takes 2 minutes and makes every tip more relevant.
+              </div>
+            </div>
+            <button
+              style={css.btn}
+              onClick={() => {
+                setNudgeDismissed(true);
+                setShowNudgeModal(false);
+                window.location.reload();
+              }}
+            >
+              Start assessment →
+            </button>
+            <button
+              style={{ ...css.btnGhost, marginTop: 10 }}
+              onClick={async () => {
+                setNudgeDismissed(true);
+                setShowNudgeModal(false);
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
+                  const { data: existing } = await supabase
+                    .from("user_preferences")
+                    .select("user_id")
+                    .eq("user_id", user.id)
+                    .maybeSingle();
+                  if (existing) {
+                    await supabase.from("user_preferences")
+                      .update({ onboarding_skipped_assessment: true })
+                      .eq("user_id", user.id);
+                  } else {
+                    await supabase.from("user_preferences")
+                      .insert({ user_id: user.id, onboarding_skipped_assessment: true });
+                  }
+                } catch (err) {
+                  console.error("nudge skip error:", err);
+                }
+              }}
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
