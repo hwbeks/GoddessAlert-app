@@ -412,25 +412,94 @@ function MainApp({ partnerData }) {
     async function loadTips() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: allTips } = await supabase.from("tips").select("*").eq("status", "active").eq("category", "partner");
+ 
+      // --- Alle actieve tips ophalen ---
+      const { data: allTips } = await supabase
+        .from("tips")
+        .select("*")
+        .eq("status", "active")
+        .eq("category", "partner");
+ 
       if (!allTips || allTips.length === 0) return;
-      const { data: seenData } = await supabase.from("seen_tips").select("tip_id").eq("user_id", user.id);
+ 
+      // --- Seen tips ophalen ---
+      const { data: seenData } = await supabase
+        .from("seen_tips")
+        .select("tip_id")
+        .eq("user_id", user.id);
+ 
       const seenIds = new Set((seenData || []).map((s) => s.tip_id));
       let unseenTips = allTips.filter((t) => !seenIds.has(t.id));
+ 
+      // Reset als alle tips gezien zijn
       if (unseenTips.length === 0) {
         await supabase.from("seen_tips").delete().eq("user_id", user.id);
         unseenTips = allTips;
       }
+ 
+      // --- Al een tip gezien vandaag? ---
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const { data: seenToday } = await supabase.from("seen_tips").select("id").eq("user_id", user.id).gte("seen_at", todayStart.toISOString());
+      const { data: seenToday } = await supabase
+        .from("seen_tips")
+        .select("id")
+        .eq("user_id", user.id)
+        .gte("seen_at", todayStart.toISOString());
+ 
+      // --- Assessment ophalen voor personalisatie ---
+      const { data: assessment } = await supabase
+        .from("assessments")
+        .select("attentiveness, gestures, presence, awareness, priority, appreciation")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+ 
+      let sortedTips = unseenTips;
+ 
+      if (assessment) {
+        // Categorieën sorteren van laagste naar hoogste score
+        const categoryScores = [
+          { category: "attentiveness", score: assessment.attentiveness || 3 },
+          { category: "gestures", score: assessment.gestures || 3 },
+          { category: "presence", score: assessment.presence || 3 },
+          { category: "awareness", score: assessment.awareness || 3 },
+          { category: "priority", score: assessment.priority || 3 },
+          { category: "appreciation", score: assessment.appreciation || 3 },
+        ].sort((a, b) => a.score - b.score);
+ 
+        // Tips groeperen per categorie
+        const tipsByCategory = {};
+        for (const cat of categoryScores) {
+          tipsByCategory[cat.category] = unseenTips
+            .filter((t) => t.category_tag === cat.category)
+            .sort(() => Math.random() - 0.5); // shuffle binnen categorie
+        }
+ 
+        // Tips zonder category_tag aan het einde
+        const uncategorized = unseenTips
+          .filter((t) => !t.category_tag)
+          .sort(() => Math.random() - 0.5);
+ 
+        // Samenvoegen: zwakste categorie eerst
+        sortedTips = [
+          ...categoryScores.flatMap((cat) => tipsByCategory[cat.category] || []),
+          ...uncategorized,
+        ];
+      } else {
+        // Geen assessment — willekeurige volgorde
+        sortedTips = unseenTips.sort(() => Math.random() - 0.5);
+      }
+ 
       if (seenToday && seenToday.length > 0) {
         setTipIndex(1);
-        setTips(unseenTips);
+        setTips(sortedTips);
         return;
       }
-      setTips(unseenTips);
+ 
+      setTips(sortedTips);
     }
+ 
     loadTips();
   }, []);
 
