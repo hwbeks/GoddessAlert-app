@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../supabase";
 import { T, css } from "../theme";
+import UpsellPrompt from "./UpsellPrompt";
 
 export default function RemindersTab({
   reminders,
@@ -9,8 +10,11 @@ export default function RemindersTab({
   saveReaction,
   pendingReactionId,
   nudgeMessage,
+  isPremium,
+  onUpgrade,
 }) {
   const [showAddReminder, setShowAddReminder] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
   const [newReminder, setNewReminder] = useState({ title: "", date: "", time: "", repeat: "never" });
   const reactionRef = useRef(null);
 
@@ -39,7 +43,6 @@ export default function RemindersTab({
         console.error("Reminder insert error:", error);
         return;
       }
-      // Haal reminders opnieuw op uit database — vermijdt RLS issues met .select().single()
       const { data: fresh } = await supabase
         .from("reminders")
         .select("*")
@@ -65,19 +68,35 @@ export default function RemindersTab({
       return dateB - dateA;
     });
 
+  function handleAddClick() {
+    if (!isPremium && openReminders.length >= 1) {
+      setShowUpsell(true);
+    } else {
+      setShowUpsell(false);
+      setShowAddReminder(true);
+    }
+  }
+
   return (
     <div style={{ padding: "8px 24px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={css.sectionTitle}>My Reminders</div>
         <button
-          onClick={() => setShowAddReminder(true)}
+          onClick={handleAddClick}
           style={{ background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 20, padding: "5px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}
         >
           + Add
         </button>
       </div>
 
-      {openReminders.length === 0 && (
+      {showUpsell && (
+        <UpsellPrompt
+          message="You've used your free reminder. Upgrade to Premium to set unlimited reminders and never miss a moment."
+          onUpgrade={onUpgrade}
+        />
+      )}
+
+      {openReminders.length === 0 && !showUpsell && (
         <div style={{ ...css.card, textAlign: "center", padding: "28px 18px" }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
           <div style={{ fontSize: 14, color: T.muted }}>All clear — nothing pending</div>
