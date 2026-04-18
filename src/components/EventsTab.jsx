@@ -34,11 +34,6 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
         repeat_yearly: true
       });
 
-      if (error) {
-        console.error("Event insert error:", error);
-        return;
-      }
-
       const { data: fresh } = await supabase
         .from("events")
         .select("*")
