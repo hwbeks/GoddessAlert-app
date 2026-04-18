@@ -18,11 +18,9 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
   const [newEvent, setNewEvent] = useState({ name: "", date: "", daysBefore: 7 });
 
   async function addEvent() {
-  console.log("addEvent aangeroepen:", newEvent);
   if (!newEvent.name || !newEvent.date) return;
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    console.log("user:", user?.id);
     if (!user) return;
 
       const { error } = await supabase.from("events").insert({
