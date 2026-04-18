@@ -22,6 +22,7 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
   if (!newEvent.name || !newEvent.date) return;
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    console.log("user:", user?.id);
     if (!user) return;
 
       const { error } = await supabase.from("events").insert({
