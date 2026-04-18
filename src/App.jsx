@@ -776,6 +776,7 @@ function MainApp({ partnerData }) {
           events={events}
           rateTip={rateTip}
           setScoreVersion={setScoreVersion}
+          isPremium={false}
         />
       )}
 
