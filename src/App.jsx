@@ -847,6 +847,8 @@ onUpgrade={() => handleUpgrade("monthly")}
           setNotifyTime={setNotifyTime}
           showTheCode={showTheCode}
           setShowTheCode={setShowTheCode}
+isPremium={isPremium()}
+onUpgrade={() => handleUpgrade("monthly")}
         />
       )}
 
