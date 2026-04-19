@@ -12,6 +12,8 @@ export default function SettingsTab({
   notifyDay, setNotifyDay,
   notifyTime, setNotifyTime,
   showTheCode, setShowTheCode,
+  isPremium,
+  onUpgrade,
 }) {
   const [prefSaved, setPrefSaved] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -210,7 +212,7 @@ export default function SettingsTab({
         .update({ assessment_completed_at: new Date().toISOString() })
         .eq("user_id", user.id);
 
-      setRemeasureResult({ old: lastAssessment, new: newScores });
+      setRemeasureResult(true);
       setLastAssessment(null);
       setShowRemeasure(false);
     } catch (err) {
@@ -337,25 +339,17 @@ export default function SettingsTab({
       )}
 
       {remeasureResult && (
-        <div style={{ marginTop: 24 }}>
-          <div style={css.sectionTitle}>Your growth</div>
-          <div style={css.card}>
-            {["attentiveness", "gestures", "presence", "awareness", "priority", "appreciation"].map((cat) => {
-              const oldVal = remeasureResult.old[cat];
-              const newVal = remeasureResult.new[cat];
-              const diff = newVal - oldVal;
-              return (
-                <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, textTransform: "capitalize", color: T.text }}>{cat}</div>
-                  <div style={{ fontSize: 13, color: diff > 0 ? T.green : diff < 0 ? T.red : T.muted }}>
-                    {oldVal} → {newVal} {diff > 0 ? `(+${diff})` : diff < 0 ? `(${diff})` : "(=)"}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+  <div style={{ marginTop: 24 }}>
+    <div style={css.sectionTitle}>Assessment updated</div>
+    <div style={{ ...css.card, textAlign: "center" }}>
+      <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+      <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>Well done</div>
+      <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>
+        Your assessment has been updated. Keep showing up — your tips will now reflect your current level.
+      </div>
+    </div>
+  </div>
+)}
 
       {/* --- Legal --- */}
       <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
