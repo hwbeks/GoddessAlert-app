@@ -628,7 +628,6 @@ function isPremium() {
   return false;
 }
   async function handleUpgrade(plan) {
-  console.log("handleUpgrade aangeroepen:", plan);
   const userEmail = currentUser?.email || "";
     const priceId = plan === "yearly" ? "price_1TLThd5ueCdcfjYzCRQL6Cx8" : "price_1TLTfg5ueCdcfjYzJjllByzI";
     const { data, error } = await supabase.functions.invoke("bright-worker", { body: { action: "create-checkout", priceId, email: userEmail, successUrl: window.location.origin + "?upgraded=true", cancelUrl: window.location.origin } });
