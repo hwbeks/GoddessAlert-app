@@ -775,10 +775,16 @@ function isPremium() {
             </div>
           )}
         </div>
-        <div onClick={() => setShowScoreModal(true)} style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${scoreColor}`, background: T.accentSoft, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <div style={{ fontSize: 18, fontWeight: "bold", color: scoreColor, lineHeight: 1 }}>{healthScore}</div>
-          <div style={{ fontSize: 8, color: T.muted, letterSpacing: 1, textTransform: "uppercase" }}>score</div>
-        </div>
+        {isPremium() ? (
+  <div onClick={() => setShowScoreModal(true)} style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${scoreColor}`, background: T.accentSoft, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+    <div style={{ fontSize: 18, fontWeight: "bold", color: scoreColor, lineHeight: 1 }}>{healthScore}</div>
+    <div style={{ fontSize: 8, color: T.muted, letterSpacing: 1, textTransform: "uppercase" }}>score</div>
+  </div>
+) : (
+  <div style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${T.border}`, background: T.accentSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ fontSize: 22 }}>🔒</div>
+  </div>
+)}
       </div>
 
       <SubscriptionBanner subscription={subscription} onUpgrade={handleUpgrade} />
