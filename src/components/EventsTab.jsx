@@ -111,23 +111,24 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
                     {days === 0 ? "today" : "days"}
                   </div>
                 </div>
-                {/* Delete button */}
-                <button
-                  onClick={() => setConfirmDeleteId(ev.id)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: T.muted,
-                    fontSize: 18,
-                    cursor: "pointer",
-                    lineHeight: 1,
-                    padding: "4px 6px",
-                    borderRadius: 6,
-                  }}
-                  title="Delete event"
-                >
-                  ×
-                </button>
+                {ev.category !== "birthday" && ev.category !== "anniversary" && (
+  <button
+    onClick={() => setConfirmDeleteId(ev.id)}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: T.muted,
+      fontSize: 18,
+      cursor: "pointer",
+      lineHeight: 1,
+      padding: "4px 6px",
+      borderRadius: 6,
+    }}
+    title="Delete event"
+  >
+    ×
+  </button>
+)}
               </div>
             </div>
             {days <= 7 && (
