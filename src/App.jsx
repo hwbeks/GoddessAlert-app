@@ -31,7 +31,7 @@ function LoginScreen({ onNext }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function sendMagicLink() {
+  async  sendMagicLink() {
     if (!email) return;
     setLoading(true); setError("");
     const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
@@ -629,8 +629,7 @@ function isPremium() {
 }
   async function handleUpgrade(plan) {
   console.log("handleUpgrade aangeroepen:", plan);
-  const { data: { user } } = await supabase.auth.getUser();
-    const userEmail = user?.email || "";
+  const userEmail = currentUser?.email || "";
     const priceId = plan === "yearly" ? "price_1TLThd5ueCdcfjYzCRQL6Cx8" : "price_1TLTfg5ueCdcfjYzJjllByzI";
     const { data, error } = await supabase.functions.invoke("bright-worker", { body: { action: "create-checkout", priceId, email: userEmail, successUrl: window.location.origin + "?upgraded=true", cancelUrl: window.location.origin } });
     if (data?.url) window.location.href = data.url;
