@@ -634,7 +634,7 @@ function isPremium() {
     const priceId = plan === "yearly" ? "price_1TLThd5ueCdcfjYzCRQL6Cx8" : "price_1TLTfg5ueCdcfjYzJjllByzI";
     const { data, error } = await supabase.functions.invoke("bright-worker", { body: { action: "create-checkout", priceId, email: userEmail, successUrl: window.location.origin + "?upgraded=true", cancelUrl: window.location.origin } });
     if (data?.url) window.location.href = data.url;
-    else console.error("Stripe error:", error);
+    else console.error("Stripe error:", JSON.stringify(error), JSON.stringify(data));
   }
 
   async function rateTip(rating) {
