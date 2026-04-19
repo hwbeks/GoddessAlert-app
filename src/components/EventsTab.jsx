@@ -16,12 +16,13 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const [newEvent, setNewEvent] = useState({ name: "", date: "", daysBefore: 7 });
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   async function addEvent() {
-  if (!newEvent.name || !newEvent.date) return;
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!newEvent.name || !newEvent.date) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
       const { error } = await supabase.from("events").insert({
         user_id: user.id,
@@ -48,6 +49,28 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
     setShowAddModal(false);
   }
 
+  async function deleteEvent(id) {
+    try {
+      await supabase.from("events").delete().eq("id", id);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: fresh } = await supabase
+        .from("events")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (fresh) {
+        setEvents([...fresh].sort((a, b) => daysUntil(a.date) - daysUntil(b.date)));
+      }
+    } catch (err) {
+      console.error("deleteEvent error:", err);
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  }
+
   function handleAddClick() {
     if (!isPremium) {
       setShowUpsell(true);
@@ -56,6 +79,8 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
       setShowAddModal(true);
     }
   }
+
+  const eventToDelete = events.find((ev) => ev.id === confirmDeleteId);
 
   return (
     <div style={{ padding: "8px 24px" }}>
@@ -79,7 +104,7 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
       {events.map((ev) => {
         const days = daysUntil(ev.date);
         return (
-          <div key={ev.id} style={days <= 7 ? css.cardAccent : css.card}>
+          <div key={ev.id} style={{ ...days <= 7 ? css.cardAccent : css.card, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ fontSize: 28 }}>{ev.emoji}</div>
@@ -88,13 +113,32 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
                   <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>Alert: {ev.days_before} days before</div>
                 </div>
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: "bold", color: days <= 3 ? T.red : days <= 7 ? T.accent : T.green }}>
-                  {days === 0 ? "🎉" : days}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: "bold", color: days <= 3 ? T.red : days <= 7 ? T.accent : T.green }}>
+                    {days === 0 ? "🎉" : days}
+                  </div>
+                  <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>
+                    {days === 0 ? "today" : "days"}
+                  </div>
                 </div>
-                <div style={{ fontSize: 10, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {days === 0 ? "today" : "days"}
-                </div>
+                {/* Delete button */}
+                <button
+                  onClick={() => setConfirmDeleteId(ev.id)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: T.muted,
+                    fontSize: 18,
+                    cursor: "pointer",
+                    lineHeight: 1,
+                    padding: "4px 6px",
+                    borderRadius: 6,
+                  }}
+                  title="Delete event"
+                >
+                  ×
+                </button>
               </div>
             </div>
             {days <= 7 && (
@@ -106,6 +150,28 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
         );
       })}
 
+      {/* Confirm delete modal */}
+      {confirmDeleteId && eventToDelete && (
+        <div style={css.modal} onClick={() => setConfirmDeleteId(null)}>
+          <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 20, fontWeight: "bold", color: T.accent, marginBottom: 6 }}>Delete Event</div>
+            <div style={{ fontSize: 14, color: T.muted, marginBottom: 20 }}>
+              Remove <strong style={{ color: T.text }}>{eventToDelete.name}</strong>? This cannot be undone.
+            </div>
+            <button
+              style={{ ...css.btn, background: T.red, color: "#fff" }}
+              onClick={() => deleteEvent(confirmDeleteId)}
+            >
+              Yes, delete
+            </button>
+            <button style={{ ...css.btnGhost, marginTop: 10 }} onClick={() => setConfirmDeleteId(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add event modal */}
       {showAddModal && (
         <div style={css.modal} onClick={() => setShowAddModal(false)}>
           <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
