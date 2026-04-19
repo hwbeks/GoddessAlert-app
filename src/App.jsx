@@ -849,6 +849,7 @@ onUpgrade={() => handleUpgrade("monthly")}
           setShowTheCode={setShowTheCode}
 isPremium={isPremium()}
 onUpgrade={() => handleUpgrade("monthly")}
+          currentUser={currentUser}
         />
       )}
 
