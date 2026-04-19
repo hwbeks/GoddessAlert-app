@@ -64,6 +64,7 @@ export default function SettingsTab({
     async function loadAssessmentData() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log("assessment check - user:", user?.id);
         if (!user) return;
 
         const { data: pref } = await supabase
@@ -72,10 +73,13 @@ export default function SettingsTab({
           .eq("user_id", user.id)
           .maybeSingle();
 
+        console.log("assessment check - pref:", pref);
+
         if (!pref?.assessment_completed_at) return;
 
         const completedAt = new Date(pref.assessment_completed_at);
         const daysSince = Math.floor((new Date() - completedAt) / (1000 * 60 * 60 * 24));
+        console.log("assessment check - daysSince:", daysSince);
 
         if (daysSince >= REMEASURE_DAYS) {
           const { data: assessments } = await supabase
