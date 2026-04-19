@@ -198,32 +198,11 @@ export default function SettingsTab({
     }
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
-  async function handleRemeasureComplete(newScores) {
-    try {
-      const user = currentUser;
-      if (!user) return;
-
-      await supabase.from("assessments").insert({
-        user_id: user.id,
-        attentiveness: newScores.attentiveness,
-        gestures: newScores.gestures,
-        presence: newScores.presence,
-        awareness: newScores.awareness,
-        priority: newScores.priority,
-        appreciation: newScores.appreciation,
-      });
-
-      await supabase.from("user_preferences")
-        .update({ assessment_completed_at: new Date().toISOString() })
-        .eq("user_id", user.id);
-
-      setRemeasureResult(true);
-      setLastAssessment(null);
-      setShowRemeasure(false);
-    } catch (err) {
-      console.error("handleRemeasureComplete error:", err);
-    }
+  // ✅ Geen database calls — SelfAssessmentScreen doet de insert zelf
+  function handleRemeasureComplete() {
+    setRemeasureResult(true);
+    setLastAssessment(null);
+    setShowRemeasure(false);
   }
 
   // ✅ Gebruikt currentUser — geen getUser() aanroep
@@ -255,7 +234,7 @@ export default function SettingsTab({
 
   if (showRemeasure) {
     return (
-      <SelfAssessmentScreen onComplete={(newScores) => handleRemeasureComplete(newScores)} />
+      <SelfAssessmentScreen onDone={handleRemeasureComplete} />
     );
   }
 
