@@ -50,26 +50,15 @@ export default function EventsTab({ events, setEvents, isPremium, onUpgrade }) {
   }
 
   async function deleteEvent(id) {
-    try {
-      await supabase.from("events").delete().eq("id", id);
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: fresh } = await supabase
-        .from("events")
-        .select("*")
-        .eq("user_id", user.id);
-
-      if (fresh) {
-        setEvents([...fresh].sort((a, b) => daysUntil(a.date) - daysUntil(b.date)));
-      }
-    } catch (err) {
-      console.error("deleteEvent error:", err);
-    } finally {
-      setConfirmDeleteId(null);
-    }
+  try {
+    await supabase.from("events").delete().eq("id", id);
+    setEvents((prev) => prev.filter((ev) => ev.id !== id));
+  } catch (err) {
+    console.error("deleteEvent error:", err);
+  } finally {
+    setConfirmDeleteId(null);
   }
+}
 
   function handleAddClick() {
     if (!isPremium) {
