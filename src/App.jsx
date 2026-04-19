@@ -31,7 +31,7 @@ function LoginScreen({ onNext }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async  sendMagicLink() {
+  async function sendMagicLink() {
     if (!email) return;
     setLoading(true); setError("");
     const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
