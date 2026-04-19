@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { T, css } from "../theme";
 import TheCode from "./TheCode";
+import SelfAssessmentScreen from "./SelfAssessmentScreen";
+
+const REMEASURE_DAYS = 0; // TODO: terugzetten naar 60 voor productie
 
 export default function SettingsTab({
   notifyEmail, setNotifyEmail,
@@ -18,6 +21,9 @@ export default function SettingsTab({
   const [partnerBirthday, setPartnerBirthday] = useState("");
   const [partnerAnniversary, setPartnerAnniversary] = useState("");
   const [partnerSaved, setPartnerSaved] = useState(false);
+  const [lastAssessment, setLastAssessment] = useState(null);
+  const [showRemeasure, setShowRemeasure] = useState(false);
+  const [remeasureResult, setRemeasureResult] = useState(null);
 
   useEffect(() => {
     async function loadPartnerData() {
@@ -29,7 +35,7 @@ export default function SettingsTab({
           .from("partners")
           .select("name, birthday")
           .eq("user_id", user.id)
-          .maybeSingle(); // ← was .single() — gooit error bij geen resultaat
+          .maybeSingle();
 
         if (partner) {
           setPartnerName(partner.name || "");
@@ -41,7 +47,7 @@ export default function SettingsTab({
           .select("date")
           .eq("user_id", user.id)
           .eq("category", "anniversary")
-          .maybeSingle(); // ← was .single()
+          .maybeSingle();
 
         if (anniversary) setPartnerAnniversary(anniversary.date || "");
 
@@ -52,6 +58,40 @@ export default function SettingsTab({
     loadPartnerData();
   }, []);
 
+  useEffect(() => {
+    async function loadAssessmentData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: pref } = await supabase
+          .from("user_preferences")
+          .select("assessment_completed_at")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!pref?.assessment_completed_at) return;
+
+        const completedAt = new Date(pref.assessment_completed_at);
+        const daysSince = Math.floor((new Date() - completedAt) / (1000 * 60 * 60 * 24));
+
+        if (daysSince >= REMEASURE_DAYS) {
+          const { data: assessments } = await supabase
+            .from("assessments")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true })
+            .limit(1);
+
+          if (assessments?.[0]) setLastAssessment(assessments[0]);
+        }
+      } catch (err) {
+        console.error("loadAssessmentData error:", err);
+      }
+    }
+    loadAssessmentData();
+  }, []);
+
   async function savePreferences() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -60,7 +100,7 @@ export default function SettingsTab({
       .from("user_preferences")
       .select("user_id")
       .eq("user_id", user.id)
-      .maybeSingle(); // ← was .single()
+      .maybeSingle();
 
     if (existing) {
       await supabase.from("user_preferences")
@@ -92,12 +132,11 @@ export default function SettingsTab({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // --- Partners tabel ---
       const { data: existingPartner } = await supabase
         .from("partners")
         .select("user_id")
         .eq("user_id", user.id)
-        .maybeSingle(); // ← was .single()
+        .maybeSingle();
 
       if (existingPartner) {
         await supabase.from("partners")
@@ -108,13 +147,12 @@ export default function SettingsTab({
           .insert({ user_id: user.id, name: partnerName, birthday: partnerBirthday || null });
       }
 
-      // --- Anniversary event ---
       const { data: existingAnniversary } = await supabase
         .from("events")
         .select("id")
         .eq("user_id", user.id)
         .eq("category", "anniversary")
-        .maybeSingle(); // ← was .single()
+        .maybeSingle();
 
       if (existingAnniversary) {
         await supabase.from("events")
@@ -132,13 +170,12 @@ export default function SettingsTab({
         });
       }
 
-      // --- Birthday event ---
       const { data: existingBirthday } = await supabase
         .from("events")
         .select("id")
         .eq("user_id", user.id)
         .eq("category", "birthday")
-        .maybeSingle(); // ← was .single()
+        .maybeSingle();
 
       if (existingBirthday) {
         await supabase.from("events")
@@ -151,6 +188,33 @@ export default function SettingsTab({
 
     } catch (err) {
       console.error("savePartnerData error:", err);
+    }
+  }
+
+  async function handleRemeasureComplete(newScores) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from("assessments").insert({
+        user_id: user.id,
+        attentiveness: newScores.attentiveness,
+        gestures: newScores.gestures,
+        presence: newScores.presence,
+        awareness: newScores.awareness,
+        priority: newScores.priority,
+        appreciation: newScores.appreciation,
+      });
+
+      await supabase.from("user_preferences")
+        .update({ assessment_completed_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+
+      setRemeasureResult({ old: lastAssessment, new: newScores });
+      setLastAssessment(null);
+      setShowRemeasure(false);
+    } catch (err) {
+      console.error("handleRemeasureComplete error:", err);
     }
   }
 
@@ -178,6 +242,12 @@ export default function SettingsTab({
       setDeleteError("Something went wrong. Please contact hello@goddessalert.com.");
       setDeleteLoading(false);
     }
+  }
+
+  if (showRemeasure) {
+    return (
+      <SelfAssessmentScreen onComplete={(newScores) => handleRemeasureComplete(newScores)} />
+    );
   }
 
   return (
@@ -248,6 +318,44 @@ export default function SettingsTab({
       <button style={{ ...css.btn, marginTop: 8, background: partnerSaved ? T.green : T.accent }} onClick={savePartnerData}>
         {partnerSaved ? "✓ Saved" : "Save partner details"}
       </button>
+
+      {/* --- Remeasurement --- */}
+      {lastAssessment && !remeasureResult && (
+        <div style={{ marginTop: 24 }}>
+          <div style={css.sectionTitle}>Time for a check-up</div>
+          <div style={{ ...css.card, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+            <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>It's been 60 days</div>
+            <div style={{ fontSize: 13, color: T.muted, marginBottom: 16, lineHeight: 1.6 }}>
+              Ready to see how much you've grown? Take the assessment again and compare your results.
+            </div>
+            <button style={css.btn} onClick={() => setShowRemeasure(true)}>
+              Remeasure myself
+            </button>
+          </div>
+        </div>
+      )}
+
+      {remeasureResult && (
+        <div style={{ marginTop: 24 }}>
+          <div style={css.sectionTitle}>Your growth</div>
+          <div style={css.card}>
+            {["attentiveness", "gestures", "presence", "awareness", "priority", "appreciation"].map((cat) => {
+              const oldVal = remeasureResult.old[cat];
+              const newVal = remeasureResult.new[cat];
+              const diff = newVal - oldVal;
+              return (
+                <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, textTransform: "capitalize", color: T.text }}>{cat}</div>
+                  <div style={{ fontSize: 13, color: diff > 0 ? T.green : diff < 0 ? T.red : T.muted }}>
+                    {oldVal} → {newVal} {diff > 0 ? `(+${diff})` : diff < 0 ? `(${diff})` : "(=)"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* --- Legal --- */}
       <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
