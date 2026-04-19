@@ -14,6 +14,7 @@ export default function SettingsTab({
   showTheCode, setShowTheCode,
   isPremium,
   onUpgrade,
+  currentUser,
 }) {
   const [prefSaved, setPrefSaved] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -27,6 +28,7 @@ export default function SettingsTab({
   const [showRemeasure, setShowRemeasure] = useState(false);
   const [remeasureResult, setRemeasureResult] = useState(null);
 
+  // ✅ useEffect mag getUser() gebruiken — mount only, geen gebruikersactie
   useEffect(() => {
     async function loadPartnerData() {
       try {
@@ -60,11 +62,11 @@ export default function SettingsTab({
     loadPartnerData();
   }, []);
 
+  // ✅ useEffect mag getUser() gebruiken — mount only, geen gebruikersactie
   useEffect(() => {
     async function loadAssessmentData() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        console.log("assessment check - user:", user?.id);
         if (!user) return;
 
         const { data: pref } = await supabase
@@ -73,13 +75,10 @@ export default function SettingsTab({
           .eq("user_id", user.id)
           .maybeSingle();
 
-        console.log("assessment check - pref:", pref);
-
         if (!pref?.assessment_completed_at) return;
 
         const completedAt = new Date(pref.assessment_completed_at);
         const daysSince = Math.floor((new Date() - completedAt) / (1000 * 60 * 60 * 24));
-        console.log("assessment check - daysSince:", daysSince);
 
         if (daysSince >= REMEASURE_DAYS) {
           const { data: assessments } = await supabase
@@ -98,8 +97,9 @@ export default function SettingsTab({
     loadAssessmentData();
   }, []);
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function savePreferences() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = currentUser;
     if (!user) return;
 
     const { data: existing } = await supabase
@@ -133,9 +133,10 @@ export default function SettingsTab({
     setTimeout(() => setPrefSaved(false), 2000);
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function savePartnerData() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = currentUser;
       if (!user) return;
 
       const { data: existingPartner } = await supabase
@@ -197,9 +198,10 @@ export default function SettingsTab({
     }
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function handleRemeasureComplete(newScores) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = currentUser;
       if (!user) return;
 
       await supabase.from("assessments").insert({
@@ -224,11 +226,12 @@ export default function SettingsTab({
     }
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function handleDeleteAccount() {
     setDeleteLoading(true);
     setDeleteError("");
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = currentUser;
       if (!user) throw new Error("Not logged in");
       const uid = user.id;
       await supabase.from("tip_ratings").delete().eq("user_id", uid);
@@ -343,17 +346,17 @@ export default function SettingsTab({
       )}
 
       {remeasureResult && (
-  <div style={{ marginTop: 24 }}>
-    <div style={css.sectionTitle}>Assessment updated</div>
-    <div style={{ ...css.card, textAlign: "center" }}>
-      <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
-      <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>Well done</div>
-      <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>
-        Your assessment has been updated. Keep showing up — your tips will now reflect your current level.
-      </div>
-    </div>
-  </div>
-)}
+        <div style={{ marginTop: 24 }}>
+          <div style={css.sectionTitle}>Assessment updated</div>
+          <div style={{ ...css.card, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+            <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>Well done</div>
+            <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>
+              Your assessment has been updated. Keep showing up — your tips will now reflect your current level.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- Legal --- */}
       <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
