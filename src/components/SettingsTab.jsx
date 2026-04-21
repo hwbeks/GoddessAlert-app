@@ -4,7 +4,7 @@ import { T, css } from "../theme";
 import TheCode from "./TheCode";
 import SelfAssessmentScreen from "./SelfAssessmentScreen";
 
-const REMEASURE_DAYS = 0; // TODO: terugzetten naar 60 voor productie
+const REMEASURE_DAYS = 60;
 
 export default function SettingsTab({
   notifyEmail, setNotifyEmail,
