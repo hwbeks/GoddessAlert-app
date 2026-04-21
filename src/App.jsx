@@ -79,7 +79,6 @@ function OnboardingScreen({ onDone }) {
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      // ✅ Fix: upsert vervangen door expliciete select+check vanwege RLS
       const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle();
       if (existingUser) {
         await supabase.from("users").update({ email: user.email }).eq("id", user.id);
@@ -112,20 +111,21 @@ function OnboardingScreen({ onDone }) {
           await supabase.from("events").insert({ user_id: user.id, name: "Anniversary", date: data.anniversary, days_before: data.alertDays, emoji: "💍", category: "anniversary" });
         }
       }
-    }
-    const { data: existingSub } = await supabase
-      .from("subscriptions")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
 
-    if (!existingSub) {
-      await supabase.from("subscriptions").insert({
-        user_id: user.id,
-        status: "free",
-        plan: "free",
-        updated_at: new Date().toISOString(),
-      });
+      const { data: existingSub } = await supabase
+        .from("subscriptions")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!existingSub) {
+        await supabase.from("subscriptions").insert({
+          user_id: user.id,
+          status: "free",
+          plan: "free",
+          updated_at: new Date().toISOString(),
+        });
+      }
     }
     setSaving(false);
     onDone(data);
@@ -168,7 +168,7 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
       <button onClick={() => onUpgrade("yearly")} style={{ flex: 1, background: "transparent", color: T.accent, border: `1px solid ${T.accent}`, borderRadius: 20, padding: "8px 14px", fontWeight: "bold", fontSize: 12, cursor: "pointer", fontFamily: "Georgia, serif" }}>€29.99/year</button>
     </div>
   );
- 
+
   if (!subscription) {
     return (
       <div style={{ padding: "0 24px 8px" }}>
@@ -182,10 +182,10 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
       </div>
     );
   }
- 
+
   const { status, trial_end, current_period_end } = subscription;
   if (status === "active" && !trial_end) return null;
- 
+
   if (status === "trialing" && trial_end) {
     const daysLeft = daysUntilDate(trial_end);
     return (
@@ -200,7 +200,7 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
       </div>
     );
   }
- 
+
   if (status === "past_due") {
     return (
       <div style={{ padding: "0 24px 8px" }}>
@@ -211,7 +211,7 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
       </div>
     );
   }
- 
+
   if (status === "canceled" && current_period_end) {
     const daysLeft = daysUntilDate(current_period_end);
     if (daysLeft > 0) {
@@ -224,7 +224,7 @@ function SubscriptionBanner({ subscription, onUpgrade }) {
       );
     }
   }
- 
+
   return null;
 }
 
@@ -284,13 +284,23 @@ function MainApp({ partnerData }) {
   const [pendingReactionId, setPendingReactionId] = useState(null);
   const [nudgeMessage, setNudgeMessage] = useState(null);
 
-  useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user)); }, []);
+  // ✅ Fix: onAuthStateChange voor sessie persistentie — currentUser blijft up-to-date
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user || null);
+    });
+
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user || null);
+    });
+
+    return () => authSub.unsubscribe();
+  }, []);
 
   useEffect(() => {
     async function loadSubscription() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setSubscriptionLoaded(true); return; }
-      // ✅ Fix: .single() → .maybeSingle() vanwege RLS
       const { data } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).maybeSingle();
       setSubscription(data || null);
       setSubscriptionLoaded(true);
@@ -312,7 +322,6 @@ function MainApp({ partnerData }) {
     loadEvents();
   }, []);
 
-  // ── Score berekening — herberekent bij scoreVersion increment ──
   useEffect(() => {
     async function calculateScore() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -323,7 +332,6 @@ function MainApp({ partnerData }) {
       const sevenDaysAgoISO = sevenDaysAgo.toISOString();
       const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
 
-      // --- Startwaarde op basis van assessment ---
       let baseScore = 50;
       const { data: latestAssessment } = await supabase
         .from("assessments")
@@ -351,7 +359,6 @@ function MainApp({ partnerData }) {
 
       let score = baseScore;
 
-      // --- Health check-in afgelopen 7 dagen ---
       const { data: checkins } = await supabase
         .from("health_scores")
         .select("score, recorded_at")
@@ -369,7 +376,6 @@ function MainApp({ partnerData }) {
         score -= 6;
       }
 
-      // --- Reminders afgelopen 7 dagen ---
       const { data: remindersData } = await supabase
         .from("reminders")
         .select("done, date, partner_reaction")
@@ -395,13 +401,9 @@ function MainApp({ partnerData }) {
         score += Math.max(-9, reminderMissedPoints);
       }
 
-      // --- Geen enkele activiteit afgelopen 7 dagen ---
       const totalActivity = (checkins?.length || 0) + (remindersData?.length || 0);
       if (totalActivity === 0) score -= 4;
 
-      // --- Plafond en bodem — max 95, min 10 ---
-      // ✅ Fix: gestureDone bonus verwijderd uit scoreberekening
-      // gestureDone wordt alleen nog gebruikt voor UI feedback, niet voor score
       score = Math.max(10, Math.min(95, score));
 
       setScore(score);
@@ -426,32 +428,28 @@ function MainApp({ partnerData }) {
     async function loadTips() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
- 
-      // --- Alle actieve tips ophalen ---
+
       const { data: allTips } = await supabase
         .from("tips")
         .select("*")
         .eq("status", "active")
         .eq("category", "partner");
- 
+
       if (!allTips || allTips.length === 0) return;
- 
-      // --- Seen tips ophalen ---
+
       const { data: seenData } = await supabase
         .from("seen_tips")
         .select("tip_id")
         .eq("user_id", user.id);
- 
+
       const seenIds = new Set((seenData || []).map((s) => s.tip_id));
       let unseenTips = allTips.filter((t) => !seenIds.has(t.id));
- 
-      // Reset als alle tips gezien zijn
+
       if (unseenTips.length === 0) {
         await supabase.from("seen_tips").delete().eq("user_id", user.id);
         unseenTips = allTips;
       }
- 
-      // --- Al een tip gezien vandaag? ---
+
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const { data: seenToday } = await supabase
@@ -459,8 +457,7 @@ function MainApp({ partnerData }) {
         .select("id")
         .eq("user_id", user.id)
         .gte("seen_at", todayStart.toISOString());
- 
-      // --- Assessment ophalen voor personalisatie ---
+
       const { data: assessment } = await supabase
         .from("assessments")
         .select("attentiveness, gestures, presence, awareness, priority, appreciation")
@@ -468,11 +465,10 @@ function MainApp({ partnerData }) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
- 
+
       let sortedTips = unseenTips;
- 
+
       if (assessment) {
-        // Categorieën sorteren van laagste naar hoogste score
         const categoryScores = [
           { category: "attentiveness", score: assessment.attentiveness || 3 },
           { category: "gestures", score: assessment.gestures || 3 },
@@ -481,39 +477,35 @@ function MainApp({ partnerData }) {
           { category: "priority", score: assessment.priority || 3 },
           { category: "appreciation", score: assessment.appreciation || 3 },
         ].sort((a, b) => a.score - b.score);
- 
-        // Tips groeperen per categorie
+
         const tipsByCategory = {};
         for (const cat of categoryScores) {
           tipsByCategory[cat.category] = unseenTips
             .filter((t) => t.category_tag === cat.category)
-            .sort(() => Math.random() - 0.5); // shuffle binnen categorie
+            .sort(() => Math.random() - 0.5);
         }
- 
-        // Tips zonder category_tag aan het einde
+
         const uncategorized = unseenTips
           .filter((t) => !t.category_tag)
           .sort(() => Math.random() - 0.5);
- 
-        // Samenvoegen: zwakste categorie eerst
+
         sortedTips = [
           ...categoryScores.flatMap((cat) => tipsByCategory[cat.category] || []),
           ...uncategorized,
         ];
       } else {
-        // Geen assessment — willekeurige volgorde
         sortedTips = unseenTips.sort(() => Math.random() - 0.5);
       }
- 
+
       if (seenToday && seenToday.length > 0) {
         setTipIndex(1);
         setTips(sortedTips);
         return;
       }
- 
+
       setTips(sortedTips);
     }
- 
+
     loadTips();
   }, []);
 
@@ -521,7 +513,6 @@ function MainApp({ partnerData }) {
     async function loadPreferences() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      // ✅ Fix: .single() → .maybeSingle()
       const { data } = await supabase.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle();
       if (data) {
         setNotifyEmail(data.notify_email ?? true);
@@ -569,7 +560,6 @@ function MainApp({ partnerData }) {
     calculatePercentages();
   }, []);
 
-  // ── Streak tracking ──
   useEffect(() => {
     async function updateStreak() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -578,7 +568,6 @@ function MainApp({ partnerData }) {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split("T")[0];
-      // ✅ Fix: .single() → .maybeSingle()
       const { data: existing } = await supabase.from("streaks").select("*").eq("user_id", user.id).maybeSingle();
       if (!existing) {
         await supabase.from("streaks").insert({ user_id: user.id, current_streak: 1, longest_streak: 1, last_active_date: today });
@@ -616,29 +605,33 @@ function MainApp({ partnerData }) {
     if (status === "canceled" && current_period_end && new Date(current_period_end) > new Date()) return true;
     return false;
   }
-function isPremium() {
-  if (!subscriptionLoaded) return true;
-  if (!subscription) return false;
-  const { status, trial_end, current_period_end } = subscription;
-  if (status === "free") return false;
-  if (status === "trialing" && trial_end && new Date(trial_end) > new Date()) return true;
-  if (status === "active") return true;
-  if (status === "past_due") return true;
-  if (status === "canceled" && current_period_end && new Date(current_period_end) > new Date()) return true;
-  return false;
-}
+
+  function isPremium() {
+    if (!subscriptionLoaded) return true;
+    if (!subscription) return false;
+    const { status, trial_end, current_period_end } = subscription;
+    if (status === "free") return false;
+    if (status === "trialing" && trial_end && new Date(trial_end) > new Date()) return true;
+    if (status === "active") return true;
+    if (status === "past_due") return true;
+    if (status === "canceled" && current_period_end && new Date(current_period_end) > new Date()) return true;
+    return false;
+  }
+
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function handleUpgrade(plan) {
-  const userEmail = currentUser?.email || "";
+    const userEmail = currentUser?.email || "";
     const priceId = plan === "yearly" ? "price_1TLThd5ueCdcfjYzCRQL6Cx8" : "price_1TLTfg5ueCdcfjYzJjllByzI";
     const { data, error } = await supabase.functions.invoke("bright-worker", { body: { action: "create-checkout", priceId, email: userEmail, successUrl: window.location.origin + "?upgraded=true", cancelUrl: window.location.origin } });
     if (data?.url) window.location.href = data.url;
     else console.error("Stripe error:", JSON.stringify(error), JSON.stringify(data));
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function rateTip(rating) {
     setGestureRating(rating); setShowRatingThanks(true);
     if (currentTip) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = currentUser;
       if (user) {
         await supabase.from("tip_ratings").upsert({ user_id: user.id, tip_id: currentTip.id, rating });
         await supabase.from("seen_tips").upsert({ user_id: user.id, tip_id: currentTip.id }, { onConflict: "user_id,tip_id" });
@@ -649,10 +642,11 @@ function isPremium() {
     setTimeout(() => { setShowRatingThanks(false); setGestureRating(null); setGestureDone(false); setTipIndex((i) => i + 1); }, 1800);
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function handleDeleteAccount() {
     setDeleteLoading(true); setDeleteError("");
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = currentUser;
       if (!user) throw new Error("Not logged in");
       const uid = user.id;
       await supabase.from("tip_ratings").delete().eq("user_id", uid);
@@ -674,10 +668,11 @@ function isPremium() {
     }
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function addEvent() {
     if (!newEvent.name || !newEvent.date) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = currentUser;
       if (!user) return;
       const { error } = await supabase.from("events").insert({
         user_id: user.id, name: newEvent.name, date: newEvent.date,
@@ -693,10 +688,11 @@ function isPremium() {
     setShowAddModal(false);
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function addReminder() {
     if (!newReminder.title || !newReminder.date || !newReminder.time) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = currentUser;
       if (!user) return;
       const { error } = await supabase.from("reminders").insert({
         user_id: user.id, title: newReminder.title, date: newReminder.date,
@@ -732,10 +728,10 @@ function isPremium() {
     setTimeout(() => setNudgeMessage(null), 3000);
   }
 
+  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function savePreferences() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = currentUser;
     if (!user) return;
-    // ✅ Fix: upsert vervangen door expliciete select+check
     const { data: existing } = await supabase.from("user_preferences").select("user_id").eq("user_id", user.id).maybeSingle();
     if (existing) {
       await supabase.from("user_preferences").update({
@@ -753,7 +749,6 @@ function isPremium() {
     setTimeout(() => setPrefSaved(false), 2000);
   }
 
-  // ✅ Fix: gestureDone bonus verwijderd — score max is nu 95 via calculateScore
   const healthScore = score;
   const scoreColor = healthScore >= 85 ? T.green : healthScore >= 70 ? T.accent : healthScore >= 50 ? T.accent : T.red;
   const scoreZone = healthScore >= 85 ? "Exceptional" : healthScore >= 70 ? "On track" : healthScore >= 50 ? "Getting there" : "Room to grow";
@@ -774,20 +769,19 @@ function isPremium() {
           )}
         </div>
         {isPremium() ? (
-  <div onClick={() => setShowScoreModal(true)} style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${scoreColor}`, background: T.accentSoft, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-    <div style={{ fontSize: 18, fontWeight: "bold", color: scoreColor, lineHeight: 1 }}>{healthScore}</div>
-    <div style={{ fontSize: 8, color: T.muted, letterSpacing: 1, textTransform: "uppercase" }}>score</div>
-  </div>
-) : (
-  <div style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${T.border}`, background: T.accentSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
-    <div style={{ fontSize: 22 }}>🔒</div>
-  </div>
-)}
+          <div onClick={() => setShowScoreModal(true)} style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${scoreColor}`, background: T.accentSoft, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <div style={{ fontSize: 18, fontWeight: "bold", color: scoreColor, lineHeight: 1 }}>{healthScore}</div>
+            <div style={{ fontSize: 8, color: T.muted, letterSpacing: 1, textTransform: "uppercase" }}>score</div>
+          </div>
+        ) : (
+          <div style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${T.border}`, background: T.accentSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ fontSize: 22 }}>🔒</div>
+          </div>
+        )}
       </div>
 
       <SubscriptionBanner subscription={subscription} onUpgrade={handleUpgrade} />
 
-      {/* HOME TAB */}
       {tab === "home" && (
         <HomeTab
           score={score}
@@ -806,21 +800,19 @@ function isPremium() {
           events={events}
           rateTip={rateTip}
           setScoreVersion={setScoreVersion}
-         isPremium={isPremium()}
+          isPremium={isPremium()}
         />
       )}
 
-      {/* EVENTS TAB */}
       {tab === "events" && (
-       <EventsTab
-  events={events}
-  setEvents={setEvents}
-  isPremium={isPremium()}
-  onUpgrade={() => handleUpgrade("monthly")}
-/>
+        <EventsTab
+          events={events}
+          setEvents={setEvents}
+          isPremium={isPremium()}
+          onUpgrade={() => handleUpgrade("monthly")}
+        />
       )}
 
-      {/* REMINDERS TAB */}
       {tab === "reminders" && (
         <RemindersTab
           reminders={reminders}
@@ -830,11 +822,10 @@ function isPremium() {
           pendingReactionId={pendingReactionId}
           nudgeMessage={nudgeMessage}
           isPremium={isPremium()}
-onUpgrade={() => handleUpgrade("monthly")}
+          onUpgrade={() => handleUpgrade("monthly")}
         />
       )}
 
-      {/* SETTINGS TAB */}
       {tab === "settings" && (
         <SettingsTab
           notifyEmail={notifyEmail}
@@ -847,13 +838,12 @@ onUpgrade={() => handleUpgrade("monthly")}
           setNotifyTime={setNotifyTime}
           showTheCode={showTheCode}
           setShowTheCode={setShowTheCode}
-isPremium={isPremium()}
-onUpgrade={() => handleUpgrade("monthly")}
+          isPremium={isPremium()}
+          onUpgrade={() => handleUpgrade("monthly")}
           currentUser={currentUser}
         />
       )}
 
-      {/* HEALTH TAB */}
       {tab === "score" && (
         <HealthTab
           healthScore={healthScore}
@@ -868,7 +858,7 @@ onUpgrade={() => handleUpgrade("monthly")}
           showTheCode={showTheCode}
           setShowTheCode={setShowTheCode}
           isPremium={isPremium()}
-onUpgrade={() => handleUpgrade("monthly")}
+          onUpgrade={() => handleUpgrade("monthly")}
         />
       )}
 
@@ -888,7 +878,6 @@ onUpgrade={() => handleUpgrade("monthly")}
         </div>
       )}
 
-      {/* Add Event Modal */}
       {showAddModal && (
         <div style={css.modal} onClick={() => setShowAddModal(false)}>
           <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -904,7 +893,6 @@ onUpgrade={() => handleUpgrade("monthly")}
         </div>
       )}
 
-      {/* Add Reminder Modal */}
       {showAddReminder && (
         <div style={{ ...css.modal, alignItems: "flex-end", overflowY: "auto" }} onClick={() => setShowAddReminder(false)}>
           <div style={{ ...css.modalBox, maxHeight: "90vh", overflowY: "auto", width: "100%", maxWidth: 420, boxSizing: "border-box" }} onClick={(e) => e.stopPropagation()}>
@@ -924,7 +912,6 @@ onUpgrade={() => handleUpgrade("monthly")}
         </div>
       )}
 
-      {/* Score Modal */}
       {showScoreModal && (
         <div style={css.modal} onClick={() => setShowScoreModal(false)}>
           <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -939,7 +926,6 @@ onUpgrade={() => handleUpgrade("monthly")}
         </div>
       )}
 
-      {/* Delete Account Modal */}
       {showDeleteModal && (
         <div style={css.modal} onClick={() => !deleteLoading && setShowDeleteModal(false)}>
           <div style={css.modalBox} onClick={(e) => e.stopPropagation()}>
