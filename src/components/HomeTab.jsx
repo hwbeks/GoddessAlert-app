@@ -167,6 +167,11 @@ export default function HomeTab({
             <div style={{ fontSize: 10, color: T.muted, letterSpacing: 1 }}>#{tipIndex + 1}</div>
           </div>
           <div style={{ fontSize: 14, color: T.text, lineHeight: 1.7 }}>{currentTip.content}</div>
+{currentTip.category_tag && (
+  <div style={{ fontSize: 11, color: T.muted, marginTop: 8, fontStyle: "italic" }}>
+    💡 Today's tip focuses on your {currentTip.category_tag.charAt(0).toUpperCase() + currentTip.category_tag.slice(1)} score
+  </div>
+)}
           <button style={{ marginTop: 14, background: T.accent, color: "#0d0d0d", border: "none", borderRadius: 30, padding: "8px 22px", fontWeight: "bold", fontSize: 13, cursor: "pointer", fontFamily: "Georgia, serif" }} onClick={() => setGestureDone(true)}>Mark as done</button>
         </div>
       )}
