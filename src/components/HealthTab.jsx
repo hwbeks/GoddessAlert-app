@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
+import { supabase } from "../supabase";
 import { T, css } from "../theme";
 import TheCode from "./TheCode";
 
