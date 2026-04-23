@@ -98,8 +98,12 @@ export default function SettingsTab({
 
   // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function savePreferences() {
-    const user = currentUser;
-    if (!user) return;
+   let user = currentUser;
+if (!user) {
+  const { data: { user: freshUser } } = await supabase.auth.getUser();
+  user = freshUser;
+}
+if (!user) return;
 
     const { data: existing } = await supabase
       .from("user_preferences")
