@@ -279,6 +279,7 @@ function MainApp({ partnerData }) {
   const [notifyPush, setNotifyPush] = useState(false);
   const [notifyDay, setNotifyDay] = useState("monday");
   const [notifyTime, setNotifyTime] = useState("09:00");
+  const [notifyTipEmail, setNotifyTipEmail] = useState(false);
   const [prefSaved, setPrefSaved] = useState(false);
   const [tips, setTips] = useState([]);
   const [pendingReactionId, setPendingReactionId] = useState(null);
@@ -515,11 +516,12 @@ function MainApp({ partnerData }) {
       if (!user) return;
       const { data } = await supabase.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle();
       if (data) {
-        setNotifyEmail(data.notify_email ?? true);
-        setNotifyPush(data.notify_push ?? false);
-        setNotifyDay(data.notify_day ?? "monday");
-        setNotifyTime(data.notify_time ?? "09:00");
-      }
+  setNotifyEmail(data.notify_email ?? true);
+  setNotifyPush(data.notify_push ?? false);
+  setNotifyDay(data.notify_day ?? "monday");
+  setNotifyTime(data.notify_time ?? "09:00");
+  setNotifyTipEmail(data.notify_tip_email ?? false);
+}
     }
     loadPreferences();
   }, []);
@@ -728,27 +730,6 @@ function MainApp({ partnerData }) {
     setTimeout(() => setNudgeMessage(null), 3000);
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
-  async function savePreferences() {
-    const user = currentUser;
-    if (!user) return;
-    const { data: existing } = await supabase.from("user_preferences").select("user_id").eq("user_id", user.id).maybeSingle();
-    if (existing) {
-      await supabase.from("user_preferences").update({
-        notify_email: notifyEmail, notify_push: notifyPush,
-        notify_day: notifyDay, notify_time: notifyTime,
-        updated_at: new Date().toISOString()
-      }).eq("user_id", user.id);
-    } else {
-      await supabase.from("user_preferences").insert({
-        user_id: user.id, notify_email: notifyEmail, notify_push: notifyPush,
-        notify_day: notifyDay, notify_time: notifyTime
-      });
-    }
-    setPrefSaved(true);
-    setTimeout(() => setPrefSaved(false), 2000);
-  }
-
   const healthScore = score;
   const scoreColor = healthScore >= 85 ? T.green : healthScore >= 70 ? T.accent : healthScore >= 50 ? T.accent : T.red;
   const scoreZone = healthScore >= 85 ? "Exceptional" : healthScore >= 70 ? "On track" : healthScore >= 50 ? "Getting there" : "Room to grow";
@@ -826,23 +807,25 @@ function MainApp({ partnerData }) {
         />
       )}
 
-      {tab === "settings" && (
-        <SettingsTab
-          notifyEmail={notifyEmail}
-          setNotifyEmail={setNotifyEmail}
-          notifyPush={notifyPush}
-          setNotifyPush={setNotifyPush}
-          notifyDay={notifyDay}
-          setNotifyDay={setNotifyDay}
-          notifyTime={notifyTime}
-          setNotifyTime={setNotifyTime}
-          showTheCode={showTheCode}
-          setShowTheCode={setShowTheCode}
-          isPremium={isPremium()}
-          onUpgrade={() => handleUpgrade("monthly")}
-          currentUser={currentUser}
-        />
-      )}
+     {tab === "settings" && (
+  <SettingsTab
+    notifyEmail={notifyEmail}
+    setNotifyEmail={setNotifyEmail}
+    notifyPush={notifyPush}
+    setNotifyPush={setNotifyPush}
+    notifyDay={notifyDay}
+    setNotifyDay={setNotifyDay}
+    notifyTime={notifyTime}
+    setNotifyTime={setNotifyTime}
+    notifyTipEmail={notifyTipEmail}
+    setNotifyTipEmail={setNotifyTipEmail}
+    showTheCode={showTheCode}
+    setShowTheCode={setShowTheCode}
+    isPremium={isPremium()}
+    onUpgrade={() => handleUpgrade("monthly")}
+    currentUser={currentUser}
+  />
+)}
 
       {tab === "score" && (
         <HealthTab
