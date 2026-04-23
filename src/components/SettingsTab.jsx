@@ -11,6 +11,7 @@ export default function SettingsTab({
   notifyPush, setNotifyPush,
   notifyDay, setNotifyDay,
   notifyTime, setNotifyTime,
+  notifyTipEmail, setNotifyTipEmail,
   showTheCode, setShowTheCode,
   isPremium,
   onUpgrade,
@@ -28,7 +29,6 @@ export default function SettingsTab({
   const [showRemeasure, setShowRemeasure] = useState(false);
   const [remeasureResult, setRemeasureResult] = useState(null);
 
-  // ✅ useEffect mag getUser() gebruiken — mount only, geen gebruikersactie
   useEffect(() => {
     async function loadPartnerData() {
       try {
@@ -62,7 +62,6 @@ export default function SettingsTab({
     loadPartnerData();
   }, []);
 
-  // ✅ useEffect mag getUser() gebruiken — mount only, geen gebruikersactie
   useEffect(() => {
     async function loadAssessmentData() {
       try {
@@ -115,6 +114,7 @@ export default function SettingsTab({
           notify_push: notifyPush,
           notify_day: notifyDay,
           notify_time: notifyTime,
+          notify_tip_email: notifyTipEmail,
           updated_at: new Date().toISOString()
         })
         .eq("user_id", user.id);
@@ -125,7 +125,8 @@ export default function SettingsTab({
           notify_email: notifyEmail,
           notify_push: notifyPush,
           notify_day: notifyDay,
-          notify_time: notifyTime
+          notify_time: notifyTime,
+          notify_tip_email: notifyTipEmail,
         });
     }
 
@@ -133,7 +134,6 @@ export default function SettingsTab({
     setTimeout(() => setPrefSaved(false), 2000);
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function savePartnerData() {
     try {
       const user = currentUser;
@@ -198,14 +198,12 @@ export default function SettingsTab({
     }
   }
 
-  // ✅ Geen database calls — SelfAssessmentScreen doet de insert zelf
   function handleRemeasureComplete() {
     setRemeasureResult(true);
     setLastAssessment(null);
     setShowRemeasure(false);
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function handleDeleteAccount() {
     setDeleteLoading(true);
     setDeleteError("");
@@ -232,10 +230,14 @@ export default function SettingsTab({
     }
   }
 
+  // Berekeningen voor hermeting framing
+  const daysSince = lastAssessment
+    ? Math.floor((new Date() - new Date(lastAssessment.created_at)) / (1000 * 60 * 60 * 24))
+    : 60;
+  const tipsReceived = Math.min(daysSince, 60);
+
   if (showRemeasure) {
-    return (
-      <SelfAssessmentScreen onDone={handleRemeasureComplete} />
-    );
+    return <SelfAssessmentScreen onDone={handleRemeasureComplete} />;
   }
 
   return (
@@ -244,20 +246,33 @@ export default function SettingsTab({
       {/* --- Notifications --- */}
       <div style={css.sectionTitle}>How to notify me</div>
       <div style={css.card}>
-        {[{ label: "📧 Email reminders", sub: "Reliable — works on all devices", val: notifyEmail, set: setNotifyEmail }].map((item, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontSize: 14, color: T.text }}>{item.label}</div>
-              <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{item.sub}</div>
-            </div>
-            <div
-              onClick={() => item.set((v) => !v)}
-              style={{ width: 44, height: 24, borderRadius: 12, background: item.val ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}
-            >
-              <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: item.val ? 23 : 3, transition: "left 0.2s" }} />
-            </div>
+        {/* Email reminders toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 14, color: T.text }}>📧 Email reminders</div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Reliable — works on all devices</div>
           </div>
-        ))}
+          <div
+            onClick={() => setNotifyEmail((v) => !v)}
+            style={{ width: 44, height: 24, borderRadius: 12, background: notifyEmail ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}
+          >
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: notifyEmail ? 23 : 3, transition: "left 0.2s" }} />
+          </div>
+        </div>
+
+        {/* Daily tip email toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+          <div>
+            <div style={{ fontSize: 14, color: T.text }}>💡 Daily tip by email</div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Receive your personalised tip every morning</div>
+          </div>
+          <div
+            onClick={() => setNotifyTipEmail((v) => !v)}
+            style={{ width: 44, height: 24, borderRadius: 12, background: notifyTipEmail ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}
+          >
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: notifyTipEmail ? 23 : 3, transition: "left 0.2s" }} />
+          </div>
+        </div>
       </div>
 
       {notifyEmail && (
@@ -310,15 +325,17 @@ export default function SettingsTab({
       {/* --- Remeasurement --- */}
       {lastAssessment && !remeasureResult && (
         <div style={{ marginTop: 24 }}>
-          <div style={css.sectionTitle}>Time for a check-up</div>
+          <div style={css.sectionTitle}>See how much you've grown</div>
           <div style={{ ...css.card, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
-            <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>It's been 60 days</div>
+            <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>
+              Ready to measure your growth?
+            </div>
             <div style={{ fontSize: 13, color: T.muted, marginBottom: 16, lineHeight: 1.6 }}>
-              Ready to see how much you've grown? Take the assessment again and compare your results.
+              You took your first assessment {daysSince} days ago. Since then you've received {tipsReceived} daily tips focused on your most challenging areas.
             </div>
             <button style={css.btn} onClick={() => setShowRemeasure(true)}>
-              Remeasure myself
+              Measure my growth →
             </button>
           </div>
         </div>
@@ -330,9 +347,17 @@ export default function SettingsTab({
           <div style={{ ...css.card, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
             <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>Well done</div>
-            <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6, marginBottom: isPremium ? 0 : 16 }}>
               Your assessment has been updated. Keep showing up — your tips will now reflect your current level.
             </div>
+            {!isPremium && (
+              <button
+                onClick={onUpgrade}
+                style={{ ...css.btn, width: "auto", padding: "10px 28px", fontSize: 13 }}
+              >
+                Upgrade to see your growth per category →
+              </button>
+            )}
           </div>
         </div>
       )}
