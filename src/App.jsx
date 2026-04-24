@@ -426,90 +426,23 @@ function MainApp({ partnerData }) {
   }, []);
 
   useEffect(() => {
-    async function loadTips() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  async function loadTips() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      const { data: allTips } = await supabase
-        .from("tips")
-        .select("*")
-        .eq("status", "active")
-        .eq("category", "partner");
+    const { data, error } = await supabase.functions.invoke("get-tips", {
+      body: { userId: user.id },
+    });
 
-      if (!allTips || allTips.length === 0) return;
+    if (error || !data?.tips) return;
 
-      const { data: seenData } = await supabase
-        .from("seen_tips")
-        .select("tip_id")
-        .eq("user_id", user.id);
+    setTips(data.tips);
+    if (data.seenToday) setTipIndex(1);
+  }
 
-      const seenIds = new Set((seenData || []).map((s) => s.tip_id));
-      let unseenTips = allTips.filter((t) => !seenIds.has(t.id));
-
-      if (unseenTips.length === 0) {
-        await supabase.from("seen_tips").delete().eq("user_id", user.id);
-        unseenTips = allTips;
-      }
-
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { data: seenToday } = await supabase
-        .from("seen_tips")
-        .select("id")
-        .eq("user_id", user.id)
-        .gte("seen_at", todayStart.toISOString());
-
-      const { data: assessment } = await supabase
-        .from("assessments")
-        .select("attentiveness, gestures, presence, awareness, priority, appreciation")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      let sortedTips = unseenTips;
-
-      if (assessment) {
-        const categoryScores = [
-          { category: "attentiveness", score: assessment.attentiveness || 3 },
-          { category: "gestures", score: assessment.gestures || 3 },
-          { category: "presence", score: assessment.presence || 3 },
-          { category: "awareness", score: assessment.awareness || 3 },
-          { category: "priority", score: assessment.priority || 3 },
-          { category: "appreciation", score: assessment.appreciation || 3 },
-        ].sort((a, b) => a.score - b.score);
-
-        const tipsByCategory = {};
-        for (const cat of categoryScores) {
-          tipsByCategory[cat.category] = unseenTips
-            .filter((t) => t.category_tag === cat.category)
-            .sort(() => Math.random() - 0.5);
-        }
-
-        const uncategorized = unseenTips
-          .filter((t) => !t.category_tag)
-          .sort(() => Math.random() - 0.5);
-
-        sortedTips = [
-          ...categoryScores.flatMap((cat) => tipsByCategory[cat.category] || []),
-          ...uncategorized,
-        ];
-      } else {
-        sortedTips = unseenTips.sort(() => Math.random() - 0.5);
-      }
-
-      if (seenToday && seenToday.length > 0) {
-        setTipIndex(1);
-        setTips(sortedTips);
-        return;
-      }
-
-      setTips(sortedTips);
-    }
-
-    loadTips();
-  }, []);
-
+  loadTips();
+}, []);
+  
   useEffect(() => {
     async function loadPreferences() {
       const { data: { user } } = await supabase.auth.getUser();
