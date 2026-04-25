@@ -29,42 +29,40 @@ export default function SettingsTab({
   const [showRemeasure, setShowRemeasure] = useState(false);
   const [remeasureResult, setRemeasureResult] = useState(null);
 
-  useEffect(() => {
-    async function loadPartnerData() {
-      try {
-  let user = currentUser;
-  if (!user) {
-    const { data: { user: freshUser } } = await supabase.auth.getUser();
-    user = freshUser;
-  }
-  if (!user) return;
+ useEffect(() => {
+  async function loadPartnerData() {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-        const { data: partner } = await supabase
-          .from("partners")
-          .select("name, birthday")
-          .eq("user_id", user.id)
-          .maybeSingle();
+      const { data: partner } = await supabase
+        .from("partners")
+        .select("name, birthday")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-        if (partner) {
-          setPartnerName(partner.name || "");
-          setPartnerBirthday(partner.birthday || "");
-        }
-
-        const { data: anniversary } = await supabase
-          .from("events")
-          .select("date")
-          .eq("user_id", user.id)
-          .eq("category", "anniversary")
-          .maybeSingle();
-
-        if (anniversary) setPartnerAnniversary(anniversary.date || "");
-
-      } catch (err) {
-        console.error("loadPartnerData error:", err);
+      if (partner) {
+        setPartnerName(partner.name || "");
+        setPartnerBirthday(partner.birthday || "");
       }
+
+      const { data: anniversary } = await supabase
+        .from("events")
+        .select("date")
+        .eq("user_id", user.id)
+        .eq("category", "anniversary")
+        .maybeSingle();
+
+      if (anniversary) setPartnerAnniversary(anniversary.date || "");
+
+    } catch (err) {
+      console.error("loadPartnerData error:", err);
     }
-    loadPartnerData();
-  }, [currentUser]);
+  }
+  loadPartnerData();
+}, []);
 
   useEffect(() => {
     async function loadAssessmentData() {
