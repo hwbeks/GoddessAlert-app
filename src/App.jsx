@@ -323,96 +323,148 @@ function MainApp({ partnerData }) {
     loadEvents();
   }, []);
 
-  useEffect(() => {
-    async function calculateScore() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+ useEffect(() => {
+  async function calculateScore() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoISO = sevenDaysAgo.toISOString();
-      const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
 
-      let baseScore = 50;
-      const { data: latestAssessment } = await supabase
-        .from("assessments")
-        .select("attentiveness, gestures, presence, awareness, priority, appreciation")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // ── 1. BASE SCORE OP BASIS VAN ASSESSMENT ───────────────
+    // Zonder assessment begin je laag — motivatie om het te doen
+    const { data: latestAssessment } = await supabase
+      .from("assessments")
+      .select("attentiveness, gestures, presence, awareness, priority, appreciation")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      if (latestAssessment) {
-        const vals = [
-          latestAssessment.attentiveness,
-          latestAssessment.gestures,
-          latestAssessment.presence,
-          latestAssessment.awareness,
-          latestAssessment.priority,
-          latestAssessment.appreciation,
-        ].filter(Boolean);
-        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-        if (avg <= 2.0) baseScore = 40;
-        else if (avg <= 3.0) baseScore = 50;
-        else if (avg <= 4.0) baseScore = 55;
-        else baseScore = 60;
-      }
+    let baseScore = 30; // Geen assessment = laag startpunt
 
-      let score = baseScore;
-
-      const { data: checkins } = await supabase
-        .from("health_scores")
-        .select("score, recorded_at")
-        .eq("user_id", user.id)
-        .gte("recorded_at", sevenDaysAgoISO)
-        .order("recorded_at", { ascending: false })
-        .limit(1);
-
-      if (checkins && checkins.length > 0) {
-        const c = checkins[0];
-        if (c.score >= 4) score += 8;
-        else if (c.score === 3) score += 4;
-        else if (c.score <= 2) score -= 4;
-      } else {
-        score -= 6;
-      }
-
-      const { data: remindersData } = await supabase
-        .from("reminders")
-        .select("done, date, partner_reaction")
-        .eq("user_id", user.id)
-        .gte("date", sevenDaysAgoDate);
-
-      if (remindersData) {
-        let reminderDonePoints = 0;
-        let reminderMissedPoints = 0;
-
-        for (const r of remindersData) {
-          if (r.done) {
-            reminderDonePoints += 4;
-          } else {
-            reminderMissedPoints -= 3;
-          }
-          if (r.partner_reaction === 1) score -= 6;
-          else if (r.partner_reaction === 2) score += 2;
-          else if (r.partner_reaction === 3) score += 8;
-        }
-
-        score += Math.min(12, reminderDonePoints);
-        score += Math.max(-9, reminderMissedPoints);
-      }
-
-      const totalActivity = (checkins?.length || 0) + (remindersData?.length || 0);
-      if (totalActivity === 0) score -= 4;
-
-      score = Math.max(10, Math.min(95, score));
-
-      setScore(score);
-      setScoreLoaded(true);
+    if (latestAssessment) {
+      const vals = [
+        latestAssessment.attentiveness,
+        latestAssessment.gestures,
+        latestAssessment.presence,
+        latestAssessment.awareness,
+        latestAssessment.priority,
+        latestAssessment.appreciation,
+      ].filter(Boolean);
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      // Assessment gedaan = direct naar zone 2
+      if (avg <= 2.0) baseScore = 38;
+      else if (avg <= 3.0) baseScore = 44;
+      else if (avg <= 4.0) baseScore = 50;
+      else baseScore = 54;
     }
 
-    calculateScore();
-  }, [scoreVersion]);
+    let score = baseScore;
+
+    // ── 2. STREAK BONUS ─────────────────────────────────────
+    // Streak is de motor — consistentie telt meer dan individuele acties
+    const { data: streakData } = await supabase
+      .from("streaks")
+      .select("current_streak, last_active_date")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const currentStreak = streakData?.current_streak || 0;
+    const lastActiveDate = streakData?.last_active_date || null;
+
+    // Streak bonus — logaritmisch zodat het steeds meer moeite kost
+    if (currentStreak >= 30) score += 14;
+    else if (currentStreak >= 14) score += 9;
+    else if (currentStreak >= 7) score += 5;
+    else if (currentStreak >= 3) score += 2;
+
+    // Decay: niet actief vandaag of gisteren = kleine aftrek
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    if (lastActiveDate && lastActiveDate !== today && lastActiveDate !== yesterdayStr) {
+      score -= 4; // Inactief = zichtbare daling
+    }
+
+    // ── 3. WEEKLY CHECK-IN ───────────────────────────────────
+    // Reflectie telt, maar weegt minder zwaar dan actie
+    const { data: checkins } = await supabase
+      .from("health_scores")
+      .select("score, recorded_at")
+      .eq("user_id", user.id)
+      .gte("recorded_at", sevenDaysAgoISO)
+      .order("recorded_at", { ascending: false })
+      .limit(1);
+
+    if (checkins && checkins.length > 0) {
+      const c = checkins[0];
+      if (c.score >= 4) score += 6;
+      else if (c.score === 3) score += 3;
+      else if (c.score <= 2) score -= 2;
+    } else {
+      score -= 3; // Geen check-in deze week = kleine aftrek
+    }
+
+    // ── 4. REMINDERS ─────────────────────────────────────────
+    // Acties tellen — maar gematigder dan voorheen
+    const { data: remindersData } = await supabase
+      .from("reminders")
+      .select("done, date, partner_reaction")
+      .eq("user_id", user.id)
+      .gte("date", sevenDaysAgoDate);
+
+    if (remindersData && remindersData.length > 0) {
+      let reminderPoints = 0;
+      let reactionPoints = 0;
+
+      for (const r of remindersData) {
+        if (r.done) reminderPoints += 2;
+        else reminderPoints -= 1;
+
+        // Partner reacties — het wildcard element
+        // Positief geeft een verrassende boost, negatief een duidelijk signaal
+        if (r.partner_reaction === 3) reactionPoints += 4;
+        else if (r.partner_reaction === 2) reactionPoints += 1;
+        else if (r.partner_reaction === 1) reactionPoints -= 3;
+      }
+
+      // Cap reminder punten — één geweldige week mag niet de score permanent opdrijven
+      score += Math.min(8, Math.max(-6, reminderPoints));
+
+      // Partner reacties gecapped — maximaal 8 punten per week
+      score += Math.min(8, Math.max(-6, reactionPoints));
+    }
+
+    // ── 5. ZONE CAPS ─────────────────────────────────────────
+    // De belangrijkste verandering: zones zijn alleen bereikbaar
+    // met de juiste combinatie van factoren
+
+    // Zone 4 (76-88): alleen met streak 7+ én check-in gedaan
+    const hasCheckin = checkins && checkins.length > 0;
+    if (score > 75 && (currentStreak < 7 || !hasCheckin)) {
+      score = Math.min(score, 75);
+    }
+
+    // Zone 5 (89-95): alleen met streak 30+ én positieve partner reacties
+    const hasPositiveReaction = remindersData?.some(r => r.partner_reaction === 3);
+    if (score > 88 && (currentStreak < 30 || !hasPositiveReaction)) {
+      score = Math.min(score, 88);
+    }
+
+    // Absolute grenzen
+    score = Math.max(10, Math.min(95, score));
+
+    setScore(score);
+    setScoreLoaded(true);
+  }
+
+  calculateScore();
+}, [scoreVersion]);
 
   useEffect(() => {
     async function loadReminders() {
