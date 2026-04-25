@@ -32,8 +32,12 @@ export default function SettingsTab({
   useEffect(() => {
     async function loadPartnerData() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+  let user = currentUser;
+  if (!user) {
+    const { data: { user: freshUser } } = await supabase.auth.getUser();
+    user = freshUser;
+  }
+  if (!user) return;
 
         const { data: partner } = await supabase
           .from("partners")
@@ -60,13 +64,17 @@ export default function SettingsTab({
       }
     }
     loadPartnerData();
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     async function loadAssessmentData() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+    try {
+  let user = currentUser;
+  if (!user) {
+    const { data: { user: freshUser } } = await supabase.auth.getUser();
+    user = freshUser;
+  }
+  if (!user) return;
 
         const { data: pref } = await supabase
           .from("user_preferences")
@@ -94,7 +102,7 @@ export default function SettingsTab({
       }
     }
     loadAssessmentData();
-  }, []);
+ }, [currentUser]);
 
   // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function savePreferences() {
