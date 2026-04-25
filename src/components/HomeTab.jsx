@@ -37,7 +37,25 @@ export default function HomeTab({
   const [showNudgeModal, setShowNudgeModal] = useState(false);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
-  useEffect(() => {
+const [timeUntilMidnight, setTimeUntilMidnight] = useState({ hrs: "00", min: "00", sec: "00" });
+
+useEffect(() => {
+  function calcTimeUntilMidnight() {
+    const now = new Date();
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    const diff = midnight - now;
+    const hrs = String(Math.floor(diff / (1000 * 60 * 60))).padStart(2, "0");
+    const min = String(Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, "0");
+    const sec = String(Math.floor((diff % (1000 * 60)) / 1000)).padStart(2, "0");
+    setTimeUntilMidnight({ hrs, min, sec });
+  }
+  calcTimeUntilMidnight();
+  const interval = setInterval(calcTimeUntilMidnight, 1000);
+  return () => clearInterval(interval);
+}, []);
+
+useEffect(() => {
     async function loadNudgeData() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -206,7 +224,7 @@ export default function HomeTab({
           <div style={{ fontSize: 15, color: T.accent, fontStyle: "italic", marginBottom: 6 }}>You're all caught up</div>
           <div style={{ fontSize: 13, color: T.muted, marginBottom: 16 }}>Your next tip arrives in</div>
           <div style={{ display: "inline-flex", gap: 8, alignItems: "center", background: T.accentSoft, border: `1px solid ${T.accent}44`, borderRadius: 12, padding: "12px 20px" }}>
-            {[{ val: "18", label: "hrs" }, { val: ":", label: null }, { val: "24", label: "min" }, { val: ":", label: null }, { val: "07", label: "sec" }].map((seg, i) =>
+         {[{ val: timeUntilMidnight.hrs, label: "hrs" }, { val: ":", label: null }, { val: timeUntilMidnight.min, label: "min" }, { val: ":", label: null }, { val: timeUntilMidnight.sec, label: "sec" }].map((seg, i) =>
               seg.label === null
                 ? <div key={i} style={{ fontSize: 22, color: T.accent, fontWeight: "bold", paddingBottom: 14 }}>:</div>
                 : <div key={i} style={{ textAlign: "center" }}><div style={{ fontSize: 26, fontWeight: "bold", color: T.accent, fontFamily: "monospace" }}>{seg.val}</div><div style={{ fontSize: 9, color: T.muted, textTransform: "uppercase", letterSpacing: 1 }}>{seg.label}</div></div>
