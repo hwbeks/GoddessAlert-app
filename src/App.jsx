@@ -621,7 +621,7 @@ function MainApp({ partnerData }) {
       const user = currentUser;
       if (user) {
         await supabase.from("tip_ratings").upsert({ user_id: user.id, tip_id: currentTip.id, rating });
-        await supabase.from("seen_tips").upsert({ user_id: user.id, tip_id: currentTip.id }, { onConflict: "user_id,tip_id" });
+        await supabase.from("seen_tips").upsert({ user_id: user.id, tip_id: currentTip.id, rating: rating === "up" ? "up" : "down" }, { onConflict: "user_id,tip_id" });
         if (rating === "up") await supabase.from("tips").update({ thumbs_up: (currentTip.thumbs_up || 0) + 1 }).eq("id", currentTip.id);
         else await supabase.from("tips").update({ thumbs_down: (currentTip.thumbs_down || 0) + 1 }).eq("id", currentTip.id);
       }
