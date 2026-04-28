@@ -841,7 +841,7 @@ function MainApp({ partnerData }) {
       </div>
 
       {nudgeMessage && (
-        <div style={{ position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)", background: T.card, border: `1px solid ${T.accent}`, borderRadius: 16, padding: "14px 20px", fontSize: 13, color: T.accent, fontStyle: "italic", textAlign: "center", zIndex: 300, maxWidth: 320, boxShadow: "0 4px 24px #00000066" }}>
+        <div style={{ position: "fixed", bottom: 140, left: "50%", transform: "translateX(-50%)", background: T.card, border: `1px solid ${T.accent}`, borderRadius: 16, padding: "14px 20px", fontSize: 13, color: T.accent, fontStyle: "italic", textAlign: "center", zIndex: 300, maxWidth: 320, boxShadow: "0 4px 24px #00000066" }}>
           {nudgeMessage}
         </div>
       )}
