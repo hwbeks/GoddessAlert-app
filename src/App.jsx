@@ -127,8 +127,17 @@ function OnboardingScreen({ onDone }) {
         });
       }
     }
-    setSaving(false);
-    onDone(data);
+    // Verstuur welkomstmail
+try {
+  await supabase.functions.invoke("send-welcome", {
+    body: { email: user.email },
+  });
+} catch (_) {
+  // Welkomstmail fout mag onboarding niet blokkeren
+}
+
+setSaving(false);
+onDone(data);
   }
 
   const steps = [
