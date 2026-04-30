@@ -70,14 +70,18 @@ function LoginScreen({ onNext }) {
 
 // ─── ONBOARDING ────────────────────────────────────────────
 
-function OnboardingScreen({ onDone }) {
+function OnboardingScreen({ onDone, currentUser }) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState({ herName: "", herBirthday: "", anniversary: "", alertDays: 7 });
   const [saving, setSaving] = useState(false);
 
   async function saveAndContinue() {
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    let user = currentUser;
+    if (!user) {
+    const { data: { user: freshUser } } = await supabase.auth.getUser();
+    user = freshUser;
+    }
     if (user) {
       const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle();
       if (existingUser) {
@@ -970,7 +974,7 @@ export default function GoddessAlert() {
   return (
     <div style={css.app}>
       {screen === "login" && <LoginScreen onNext={() => setScreen("onboarding")} />}
-      {screen === "onboarding" && <OnboardingScreen onDone={(data) => { setPartnerData(data); setScreen("assessment"); }} />}
+      {screen === "onboarding" && <OnboardingScreen onDone={(data) => { setPartnerData(data); setScreen("assessment"); }} currentUser={currentUser} />}
       {screen === "assessment" && (
         <SelfAssessmentScreen
           onDone={() => setScreen("app")}
