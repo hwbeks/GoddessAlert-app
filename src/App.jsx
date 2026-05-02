@@ -34,7 +34,7 @@ function LoginScreen({ onNext }) {
   async function sendMagicLink() {
     if (!email) return;
     setLoading(true); setError("");
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: "https://app.goddessalert.com" } });
     if (error) { setError(error.message); setLoading(false); } else { setSent(true); setLoading(false); }
   }
 
