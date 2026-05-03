@@ -718,14 +718,32 @@ function MainApp({ partnerData }) {
     else setPendingReactionId(null);
   }
 
-  async function saveReaction(id, reaction) {
+ async function saveReaction(id, reaction) {
     await supabase.from("reminders").update({ partner_reaction: reaction }).eq("id", id);
     setReminders((r) => r.map((x) => (x.id === id ? { ...x, partner_reaction: reaction } : x)));
     setPendingReactionId(null);
     setScoreVersion((v) => v + 1);
-    const nudges = { 1: "Next time, start earlier.", 2: "She notices more than you think.", 3: "This is exactly why you do this." };
-    setNudgeMessage(nudges[reaction]);
-    setTimeout(() => setNudgeMessage(null), 3000);
+
+    if (reaction === 1) {
+      const { data: repairTips } = await supabase
+        .from("tips")
+        .select("content")
+        .eq("category_tag", "repair")
+        .eq("status", "active")
+        .eq("language", "en");
+
+      if (repairTips && repairTips.length > 0) {
+        const random = repairTips[Math.floor(Math.random() * repairTips.length)];
+        setNudgeMessage(random.content);
+      } else {
+        setNudgeMessage("This is a moment that matters. Take a breath and reach out to her.");
+      }
+    } else {
+      const nudges = { 2: "She notices more than you think.", 3: "This is exactly why you do this." };
+      setNudgeMessage(nudges[reaction]);
+    }
+
+    setTimeout(() => setNudgeMessage(null), 6000);
   }
 
   const healthScore = score;
