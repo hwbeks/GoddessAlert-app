@@ -948,10 +948,12 @@ function MainApp({ partnerData }) {
 export default function GoddessAlert() {
   const [screen, setScreen] = useState("login");
   const [partnerData, setPartnerData] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    async function handleSession(session) {
       if (session) {
+        setCurrentUser(session.user);
         const { data: partner } = await supabase.from("partners").select("*").eq("user_id", session.user.id).maybeSingle();
         if (!partner) {
           setScreen("onboarding");
@@ -965,25 +967,18 @@ export default function GoddessAlert() {
           setScreen(assessmentDone ? "app" : "assessment");
         }
         if (partner) setPartnerData({ herName: partner.name, herBirthday: partner.birthday });
+      } else {
+        setCurrentUser(null);
+        setScreen("login");
       }
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const { data: partner } = await supabase.from("partners").select("*").eq("user_id", session.user.id).maybeSingle();
-        if (!partner) {
-          setScreen("onboarding");
-        } else {
-          const { data: prefs } = await supabase
-            .from("user_preferences")
-            .select("assessment_completed_at, onboarding_skipped_assessment")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-          const assessmentDone = prefs?.assessment_completed_at || prefs?.onboarding_skipped_assessment;
-          setScreen(assessmentDone ? "app" : "assessment");
-        }
-        if (partner) setPartnerData({ herName: partner.name, herBirthday: partner.birthday });
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();
