@@ -6,6 +6,7 @@ import RemindersTab from "./components/RemindersTab";
 import HealthTab from "./components/HealthTab";
 import HomeTab from "./components/HomeTab";
 import SelfAssessmentScreen from "./components/SelfAssessmentScreen";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { stripePromise, PRICES } from "./stripe";
 import { useState, useEffect } from "react";
 import { T, css } from "./theme";
@@ -131,17 +132,14 @@ function OnboardingScreen({ onDone, currentUser }) {
         });
       }
     }
-    // Verstuur welkomstmail
-try {
-  await supabase.functions.invoke("send-welcome", {
-    body: { email: user.email },
-  });
-} catch (_) {
-  // Welkomstmail fout mag onboarding niet blokkeren
-}
+    try {
+      await supabase.functions.invoke("send-welcome", {
+        body: { email: user.email },
+      });
+    } catch (_) {}
 
-setSaving(false);
-onDone(data);
+    setSaving(false);
+    onDone(data);
   }
 
   const steps = [
@@ -298,7 +296,6 @@ function MainApp({ partnerData }) {
   const [pendingReactionId, setPendingReactionId] = useState(null);
   const [nudgeMessage, setNudgeMessage] = useState(null);
 
-  // ✅ Fix: onAuthStateChange voor sessie persistentie — currentUser blijft up-to-date
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setCurrentUser(session?.user || null);
@@ -336,148 +333,125 @@ function MainApp({ partnerData }) {
     loadEvents();
   }, []);
 
- useEffect(() => {
-  async function calculateScore() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  useEffect(() => {
+    async function calculateScore() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
-    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
-    const today = new Date().toISOString().split("T")[0];
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+      const sevenDaysAgoDate = sevenDaysAgo.toISOString().split("T")[0];
+      const today = new Date().toISOString().split("T")[0];
 
-    // ── 1. BASE SCORE OP BASIS VAN ASSESSMENT ───────────────
-    // Zonder assessment begin je laag — motivatie om het te doen
-    const { data: latestAssessment } = await supabase
-      .from("assessments")
-      .select("attentiveness, gestures, presence, awareness, priority, appreciation")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      const { data: latestAssessment } = await supabase
+        .from("assessments")
+        .select("attentiveness, gestures, presence, awareness, priority, appreciation")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    let baseScore = 30; // Geen assessment = laag startpunt
+      let baseScore = 30;
 
-    if (latestAssessment) {
-      const vals = [
-        latestAssessment.attentiveness,
-        latestAssessment.gestures,
-        latestAssessment.presence,
-        latestAssessment.awareness,
-        latestAssessment.priority,
-        latestAssessment.appreciation,
-      ].filter(Boolean);
-      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-      // Assessment gedaan = direct naar zone 2
-      if (avg <= 2.0) baseScore = 38;
-      else if (avg <= 3.0) baseScore = 44;
-      else if (avg <= 4.0) baseScore = 50;
-      else baseScore = 54;
-    }
-
-    let score = baseScore;
-
-    // ── 2. STREAK BONUS ─────────────────────────────────────
-    // Streak is de motor — consistentie telt meer dan individuele acties
-    const { data: streakData } = await supabase
-      .from("streaks")
-      .select("current_streak, last_active_date")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const currentStreak = streakData?.current_streak || 0;
-    const lastActiveDate = streakData?.last_active_date || null;
-
-    // Streak bonus — logaritmisch zodat het steeds meer moeite kost
-    if (currentStreak >= 30) score += 14;
-    else if (currentStreak >= 14) score += 9;
-    else if (currentStreak >= 7) score += 5;
-    else if (currentStreak >= 3) score += 2;
-
-    // Decay: niet actief vandaag of gisteren = kleine aftrek
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-    if (lastActiveDate && lastActiveDate !== today && lastActiveDate !== yesterdayStr) {
-      score -= 4; // Inactief = zichtbare daling
-    }
-
-    // ── 3. WEEKLY CHECK-IN ───────────────────────────────────
-    // Reflectie telt, maar weegt minder zwaar dan actie
-    const { data: checkins } = await supabase
-      .from("health_scores")
-      .select("score, recorded_at")
-      .eq("user_id", user.id)
-      .gte("recorded_at", sevenDaysAgoISO)
-      .order("recorded_at", { ascending: false })
-      .limit(1);
-
-    if (checkins && checkins.length > 0) {
-      const c = checkins[0];
-      if (c.score >= 4) score += 6;
-      else if (c.score === 3) score += 3;
-      else if (c.score <= 2) score -= 2;
-    } else {
-      score -= 3; // Geen check-in deze week = kleine aftrek
-    }
-
-    // ── 4. REMINDERS ─────────────────────────────────────────
-    // Acties tellen — maar gematigder dan voorheen
-    const { data: remindersData } = await supabase
-      .from("reminders")
-      .select("done, date, partner_reaction")
-      .eq("user_id", user.id)
-      .gte("date", sevenDaysAgoDate);
-
-    if (remindersData && remindersData.length > 0) {
-      let reminderPoints = 0;
-      let reactionPoints = 0;
-
-      for (const r of remindersData) {
-        if (r.done) reminderPoints += 2;
-        else reminderPoints -= 1;
-
-        // Partner reacties — het wildcard element
-        // Positief geeft een verrassende boost, negatief een duidelijk signaal
-        if (r.partner_reaction === 3) reactionPoints += 4;
-        else if (r.partner_reaction === 2) reactionPoints += 1;
-        else if (r.partner_reaction === 1) reactionPoints -= 3;
+      if (latestAssessment) {
+        const vals = [
+          latestAssessment.attentiveness,
+          latestAssessment.gestures,
+          latestAssessment.presence,
+          latestAssessment.awareness,
+          latestAssessment.priority,
+          latestAssessment.appreciation,
+        ].filter(Boolean);
+        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+        if (avg <= 2.0) baseScore = 38;
+        else if (avg <= 3.0) baseScore = 44;
+        else if (avg <= 4.0) baseScore = 50;
+        else baseScore = 54;
       }
 
-      // Cap reminder punten — één geweldige week mag niet de score permanent opdrijven
-      score += Math.min(8, Math.max(-6, reminderPoints));
+      let score = baseScore;
 
-      // Partner reacties gecapped — maximaal 8 punten per week
-      score += Math.min(8, Math.max(-6, reactionPoints));
+      const { data: streakData } = await supabase
+        .from("streaks")
+        .select("current_streak, last_active_date")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const currentStreak = streakData?.current_streak || 0;
+      const lastActiveDate = streakData?.last_active_date || null;
+
+      if (currentStreak >= 30) score += 14;
+      else if (currentStreak >= 14) score += 9;
+      else if (currentStreak >= 7) score += 5;
+      else if (currentStreak >= 3) score += 2;
+
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+      if (lastActiveDate && lastActiveDate !== today && lastActiveDate !== yesterdayStr) {
+        score -= 4;
+      }
+
+      const { data: checkins } = await supabase
+        .from("health_scores")
+        .select("score, recorded_at")
+        .eq("user_id", user.id)
+        .gte("recorded_at", sevenDaysAgoISO)
+        .order("recorded_at", { ascending: false })
+        .limit(1);
+
+      if (checkins && checkins.length > 0) {
+        const c = checkins[0];
+        if (c.score >= 4) score += 6;
+        else if (c.score === 3) score += 3;
+        else if (c.score <= 2) score -= 2;
+      } else {
+        score -= 3;
+      }
+
+      const { data: remindersData } = await supabase
+        .from("reminders")
+        .select("done, date, partner_reaction")
+        .eq("user_id", user.id)
+        .gte("date", sevenDaysAgoDate);
+
+      if (remindersData && remindersData.length > 0) {
+        let reminderPoints = 0;
+        let reactionPoints = 0;
+
+        for (const r of remindersData) {
+          if (r.done) reminderPoints += 2;
+          else reminderPoints -= 1;
+
+          if (r.partner_reaction === 3) reactionPoints += 4;
+          else if (r.partner_reaction === 2) reactionPoints += 1;
+          else if (r.partner_reaction === 1) reactionPoints -= 3;
+        }
+
+        score += Math.min(8, Math.max(-6, reminderPoints));
+        score += Math.min(8, Math.max(-6, reactionPoints));
+      }
+
+      const hasCheckin = checkins && checkins.length > 0;
+      if (score > 75 && (currentStreak < 7 || !hasCheckin)) {
+        score = Math.min(score, 75);
+      }
+
+      const hasPositiveReaction = remindersData?.some(r => r.partner_reaction === 3);
+      if (score > 88 && (currentStreak < 30 || !hasPositiveReaction)) {
+        score = Math.min(score, 88);
+      }
+
+      score = Math.max(10, Math.min(95, score));
+
+      setScore(score);
+      setScoreLoaded(true);
     }
 
-    // ── 5. ZONE CAPS ─────────────────────────────────────────
-    // De belangrijkste verandering: zones zijn alleen bereikbaar
-    // met de juiste combinatie van factoren
-
-    // Zone 4 (76-88): alleen met streak 7+ én check-in gedaan
-    const hasCheckin = checkins && checkins.length > 0;
-    if (score > 75 && (currentStreak < 7 || !hasCheckin)) {
-      score = Math.min(score, 75);
-    }
-
-    // Zone 5 (89-95): alleen met streak 30+ én positieve partner reacties
-    const hasPositiveReaction = remindersData?.some(r => r.partner_reaction === 3);
-    if (score > 88 && (currentStreak < 30 || !hasPositiveReaction)) {
-      score = Math.min(score, 88);
-    }
-
-    // Absolute grenzen
-    score = Math.max(10, Math.min(95, score));
-
-    setScore(score);
-    setScoreLoaded(true);
-  }
-
-  calculateScore();
-}, [scoreVersion]);
+    calculateScore();
+  }, [scoreVersion]);
 
   useEffect(() => {
     async function loadReminders() {
@@ -491,35 +465,35 @@ function MainApp({ partnerData }) {
   }, []);
 
   useEffect(() => {
-  async function loadTips() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    async function loadTips() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data, error } = await supabase.functions.invoke("get-tips", {
-      body: { userId: user.id },
-    });
+      const { data, error } = await supabase.functions.invoke("get-tips", {
+        body: { userId: user.id },
+      });
 
-    if (error || !data?.tips) return;
+      if (error || !data?.tips) return;
 
-    setTips(data.tips);
-    if (data.seenToday) setTipIndex(1);
-  }
+      setTips(data.tips);
+      if (data.seenToday) setTipIndex(1);
+    }
 
-  loadTips();
-}, []);
-  
+    loadTips();
+  }, []);
+
   useEffect(() => {
     async function loadPreferences() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle();
       if (data) {
-  setNotifyEmail(data.notify_email ?? true);
-  setNotifyPush(data.notify_push ?? false);
-  setNotifyDay(data.notify_day ?? "monday");
-  setNotifyTime(data.notify_time ?? "09:00");
-  setNotifyTipEmail(data.notify_tip_email ?? false);
-}
+        setNotifyEmail(data.notify_email ?? true);
+        setNotifyPush(data.notify_push ?? false);
+        setNotifyDay(data.notify_day ?? "monday");
+        setNotifyTime(data.notify_time ?? "09:00");
+        setNotifyTipEmail(data.notify_tip_email ?? false);
+      }
     }
     loadPreferences();
   }, []);
@@ -618,7 +592,6 @@ function MainApp({ partnerData }) {
     return false;
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function handleUpgrade(plan) {
     const userEmail = currentUser?.email || "";
     const priceId = plan === "yearly" ? "price_1TLThd5ueCdcfjYzCRQL6Cx8" : "price_1TLTfg5ueCdcfjYzJjllByzI";
@@ -627,7 +600,6 @@ function MainApp({ partnerData }) {
     else console.error("Stripe error:", JSON.stringify(error), JSON.stringify(data));
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function rateTip(rating) {
     setGestureRating(rating); setShowRatingThanks(true);
     if (currentTip) {
@@ -642,7 +614,6 @@ function MainApp({ partnerData }) {
     setTimeout(() => { setShowRatingThanks(false); setGestureRating(null); setGestureDone(false); setTipIndex((i) => i + 1); }, 1800);
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function handleDeleteAccount() {
     setDeleteLoading(true); setDeleteError("");
     try {
@@ -668,7 +639,6 @@ function MainApp({ partnerData }) {
     }
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function addEvent() {
     if (!newEvent.name || !newEvent.date) return;
     try {
@@ -688,7 +658,6 @@ function MainApp({ partnerData }) {
     setShowAddModal(false);
   }
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function addReminder() {
     if (!newReminder.title || !newReminder.date || !newReminder.time) return;
     try {
@@ -718,7 +687,7 @@ function MainApp({ partnerData }) {
     else setPendingReactionId(null);
   }
 
- async function saveReaction(id, reaction) {
+  async function saveReaction(id, reaction) {
     await supabase.from("reminders").update({ partner_reaction: reaction }).eq("id", id);
     setReminders((r) => r.map((x) => (x.id === id ? { ...x, partner_reaction: reaction } : x)));
     setPendingReactionId(null);
@@ -780,85 +749,95 @@ function MainApp({ partnerData }) {
       <SubscriptionBanner subscription={subscription} onUpgrade={handleUpgrade} />
 
       {tab === "home" && (
-        <HomeTab
-          score={score}
-          setScore={setScore}
-          weeklyRating={weeklyRating}
-          setWeeklyRating={setWeeklyRating}
-          gestureDone={gestureDone}
-          setGestureDone={setGestureDone}
-          showRatingThanks={showRatingThanks}
-          setShowRatingThanks={setShowRatingThanks}
-          gestureRating={gestureRating}
-          setGestureRating={setGestureRating}
-          tips={tips}
-          tipIndex={tipIndex}
-          setTipIndex={setTipIndex}
-          events={events}
-          rateTip={rateTip}
-          setScoreVersion={setScoreVersion}
-          isPremium={isPremium()}
-        />
+        <ErrorBoundary>
+          <HomeTab
+            score={score}
+            setScore={setScore}
+            weeklyRating={weeklyRating}
+            setWeeklyRating={setWeeklyRating}
+            gestureDone={gestureDone}
+            setGestureDone={setGestureDone}
+            showRatingThanks={showRatingThanks}
+            setShowRatingThanks={setShowRatingThanks}
+            gestureRating={gestureRating}
+            setGestureRating={setGestureRating}
+            tips={tips}
+            tipIndex={tipIndex}
+            setTipIndex={setTipIndex}
+            events={events}
+            rateTip={rateTip}
+            setScoreVersion={setScoreVersion}
+            isPremium={isPremium()}
+          />
+        </ErrorBoundary>
       )}
 
       {tab === "events" && (
-        <EventsTab
-          events={events}
-          setEvents={setEvents}
-          isPremium={isPremium()}
-          onUpgrade={() => handleUpgrade("monthly")}
-        />
+        <ErrorBoundary>
+          <EventsTab
+            events={events}
+            setEvents={setEvents}
+            isPremium={isPremium()}
+            onUpgrade={() => handleUpgrade("monthly")}
+          />
+        </ErrorBoundary>
       )}
 
       {tab === "reminders" && (
-        <RemindersTab
-          reminders={reminders}
-          setReminders={setReminders}
-          toggleReminder={toggleReminder}
-          saveReaction={saveReaction}
-          pendingReactionId={pendingReactionId}
-          nudgeMessage={nudgeMessage}
-          isPremium={isPremium()}
-          onUpgrade={() => handleUpgrade("monthly")}
-        />
+        <ErrorBoundary>
+          <RemindersTab
+            reminders={reminders}
+            setReminders={setReminders}
+            toggleReminder={toggleReminder}
+            saveReaction={saveReaction}
+            pendingReactionId={pendingReactionId}
+            nudgeMessage={nudgeMessage}
+            isPremium={isPremium()}
+            onUpgrade={() => handleUpgrade("monthly")}
+          />
+        </ErrorBoundary>
       )}
 
-     {tab === "settings" && (
-  <SettingsTab
-    notifyEmail={notifyEmail}
-    setNotifyEmail={setNotifyEmail}
-    notifyPush={notifyPush}
-    setNotifyPush={setNotifyPush}
-    notifyDay={notifyDay}
-    setNotifyDay={setNotifyDay}
-    notifyTime={notifyTime}
-    setNotifyTime={setNotifyTime}
-    notifyTipEmail={notifyTipEmail}
-    setNotifyTipEmail={setNotifyTipEmail}
-    showTheCode={showTheCode}
-    setShowTheCode={setShowTheCode}
-    isPremium={isPremium()}
-    onUpgrade={() => handleUpgrade("monthly")}
-    currentUser={currentUser}
-  />
-)}
+      {tab === "settings" && (
+        <ErrorBoundary>
+          <SettingsTab
+            notifyEmail={notifyEmail}
+            setNotifyEmail={setNotifyEmail}
+            notifyPush={notifyPush}
+            setNotifyPush={setNotifyPush}
+            notifyDay={notifyDay}
+            setNotifyDay={setNotifyDay}
+            notifyTime={notifyTime}
+            setNotifyTime={setNotifyTime}
+            notifyTipEmail={notifyTipEmail}
+            setNotifyTipEmail={setNotifyTipEmail}
+            showTheCode={showTheCode}
+            setShowTheCode={setShowTheCode}
+            isPremium={isPremium()}
+            onUpgrade={() => handleUpgrade("monthly")}
+            currentUser={currentUser}
+          />
+        </ErrorBoundary>
+      )}
 
       {tab === "score" && (
-        <HealthTab
-          healthScore={healthScore}
-          scoreColor={scoreColor}
-          scoreZone={scoreZone}
-          name={name}
-          streak={streak}
-          longestStreak={longestStreak}
-          scorePercentages={scorePercentages}
-          gestureDone={gestureDone}
-          showRatingThanks={showRatingThanks}
-          showTheCode={showTheCode}
-          setShowTheCode={setShowTheCode}
-          isPremium={isPremium()}
-          onUpgrade={() => handleUpgrade("monthly")}
-        />
+        <ErrorBoundary>
+          <HealthTab
+            healthScore={healthScore}
+            scoreColor={scoreColor}
+            scoreZone={scoreZone}
+            name={name}
+            streak={streak}
+            longestStreak={longestStreak}
+            scorePercentages={scorePercentages}
+            gestureDone={gestureDone}
+            showRatingThanks={showRatingThanks}
+            showTheCode={showTheCode}
+            setShowTheCode={setShowTheCode}
+            isPremium={isPremium()}
+            onUpgrade={() => handleUpgrade("monthly")}
+          />
+        </ErrorBoundary>
       )}
 
       {/* Bottom Nav */}
