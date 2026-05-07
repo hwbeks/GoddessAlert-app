@@ -379,18 +379,18 @@ if (!user) return;
           { label: "📄 Terms of Use", sub: "Your rights and responsibilities", url: "https://goddessalert.com/terms.html" },
           { label: "🔒 Privacy Policy", sub: "How we handle your data", url: "https://goddessalert.com/privacy.html" }
         ].map((item, i) => (
-          <div
-            key={i}
-            onClick={() => window.open(item.url, "_blank")}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 14, marginBottom: 14, borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}
-          >
-            <div>
-              <div style={{ fontSize: 14, color: T.text }}>{item.label}</div>
-              <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{item.sub}</div>
-            </div>
-            <div style={{ fontSize: 16, color: T.muted }}>›</div>
+        key={i}
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 14, marginBottom: 14, borderBottom: `1px solid ${T.border}`, textDecoration: "none" }}
+        >
+          <div>
+            <div style={{ fontSize: 14, color: T.text }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{item.sub}</div>
           </div>
-        ))}
+          <div style={{ fontSize: 16, color: T.muted }}>›</div>
+        </a>
         <div onClick={() => setShowDeleteModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
           <div>
             <div style={{ fontSize: 14, color: T.red }}>🗑️ Delete my account</div>
