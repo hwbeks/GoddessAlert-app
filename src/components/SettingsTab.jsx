@@ -108,6 +108,21 @@ export default function SettingsTab({
     setShowRemeasure(false);
   }
 
+  async function resetAssessment() {
+    let user = currentUser;
+    if (!user) {
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
+      user = freshUser;
+    }
+    if (!user) return;
+    await supabase.from("user_preferences").upsert({
+      user_id: user.id,
+      assessment_completed_at: null,
+      onboarding_skipped_assessment: false,
+    }, { onConflict: "user_id" });
+    window.location.reload();
+  }
+
   async function handleDeleteAccount() {
     setDeleteLoading(true); setDeleteError("");
     try {
@@ -239,6 +254,21 @@ export default function SettingsTab({
           </div>
         </div>
       )}
+
+      {/* --- Redo assessment --- */}
+      <div style={{ ...css.sectionTitle, marginTop: 24 }}>Your profile</div>
+      <div style={css.card}>
+        <div style={{ fontSize: 14, color: T.text, marginBottom: 4 }}>🔄 Redo self assessment</div>
+        <div style={{ fontSize: 11, color: T.muted, marginBottom: 14, lineHeight: 1.6 }}>
+          Retake the assessment to update your profile and personalise your tips.
+        </div>
+        <button
+          onClick={resetAssessment}
+          style={{ ...css.btnGhost, fontSize: 12 }}
+        >
+          Start assessment →
+        </button>
+      </div>
 
       {/* --- Legal --- */}
       <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
