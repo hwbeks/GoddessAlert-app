@@ -29,117 +29,50 @@ export default function SettingsTab({
   const [showRemeasure, setShowRemeasure] = useState(false);
   const [remeasureResult, setRemeasureResult] = useState(null);
 
- useEffect(() => {
-  async function loadPartnerData() {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: partner } = await supabase
-        .from("partners")
-        .select("name, birthday")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (partner) {
-        setPartnerName(partner.name || "");
-        setPartnerBirthday(partner.birthday || "");
-      }
-
-      const { data: anniversary } = await supabase
-        .from("events")
-        .select("date")
-        .eq("user_id", user.id)
-        .eq("category", "anniversary")
-        .maybeSingle();
-
-      if (anniversary) setPartnerAnniversary(anniversary.date || "");
-
-    } catch (err) {
-      console.error("loadPartnerData error:", err);
+  useEffect(() => {
+    async function loadPartnerData() {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: partner } = await supabase.from("partners").select("name, birthday").eq("user_id", user.id).maybeSingle();
+        if (partner) { setPartnerName(partner.name || ""); setPartnerBirthday(partner.birthday || ""); }
+        const { data: anniversary } = await supabase.from("events").select("date").eq("user_id", user.id).eq("category", "anniversary").maybeSingle();
+        if (anniversary) setPartnerAnniversary(anniversary.date || "");
+      } catch (err) { console.error("loadPartnerData error:", err); }
     }
-  }
-  loadPartnerData();
-}, []);
+    loadPartnerData();
+  }, []);
 
   useEffect(() => {
     async function loadAssessmentData() {
-    try {
-  let user = currentUser;
-  if (!user) {
-    const { data: { user: freshUser } } = await supabase.auth.getUser();
-    user = freshUser;
-  }
-  if (!user) return;
-
-        const { data: pref } = await supabase
-          .from("user_preferences")
-          .select("assessment_completed_at")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+      try {
+        let user = currentUser;
+        if (!user) { const { data: { user: freshUser } } = await supabase.auth.getUser(); user = freshUser; }
+        if (!user) return;
+        const { data: pref } = await supabase.from("user_preferences").select("assessment_completed_at").eq("user_id", user.id).maybeSingle();
         if (!pref?.assessment_completed_at) return;
-
         const completedAt = new Date(pref.assessment_completed_at);
         const daysSince = Math.floor((new Date() - completedAt) / (1000 * 60 * 60 * 24));
-
         if (daysSince >= REMEASURE_DAYS) {
-          const { data: assessments } = await supabase
-            .from("assessments")
-            .select("*")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: true })
-            .limit(1);
-
+          const { data: assessments } = await supabase.from("assessments").select("*").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1);
           if (assessments?.[0]) setLastAssessment(assessments[0]);
         }
-      } catch (err) {
-        console.error("loadAssessmentData error:", err);
-      }
+      } catch (err) { console.error("loadAssessmentData error:", err); }
     }
     loadAssessmentData();
- }, [currentUser]);
+  }, [currentUser]);
 
-  // ✅ Gebruikt currentUser — geen getUser() aanroep
   async function savePreferences() {
-   let user = currentUser;
-if (!user) {
-  const { data: { user: freshUser } } = await supabase.auth.getUser();
-  user = freshUser;
-}
-if (!user) return;
-
-    const { data: existing } = await supabase
-      .from("user_preferences")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
+    let user = currentUser;
+    if (!user) { const { data: { user: freshUser } } = await supabase.auth.getUser(); user = freshUser; }
+    if (!user) return;
+    const { data: existing } = await supabase.from("user_preferences").select("user_id").eq("user_id", user.id).maybeSingle();
     if (existing) {
-      await supabase.from("user_preferences")
-        .update({
-          notify_email: notifyEmail,
-          notify_push: notifyPush,
-          notify_day: notifyDay,
-          notify_time: notifyTime,
-          notify_tip_email: notifyTipEmail,
-          updated_at: new Date().toISOString()
-        })
-        .eq("user_id", user.id);
+      await supabase.from("user_preferences").update({ notify_email: notifyEmail, notify_push: notifyPush, notify_day: notifyDay, notify_time: notifyTime, notify_tip_email: notifyTipEmail, updated_at: new Date().toISOString() }).eq("user_id", user.id);
     } else {
-      await supabase.from("user_preferences")
-        .insert({
-          user_id: user.id,
-          notify_email: notifyEmail,
-          notify_push: notifyPush,
-          notify_day: notifyDay,
-          notify_time: notifyTime,
-          notify_tip_email: notifyTipEmail,
-        });
+      await supabase.from("user_preferences").insert({ user_id: user.id, notify_email: notifyEmail, notify_push: notifyPush, notify_day: notifyDay, notify_time: notifyTime, notify_tip_email: notifyTipEmail });
     }
-
     setPrefSaved(true);
     setTimeout(() => setPrefSaved(false), 2000);
   }
@@ -148,64 +81,25 @@ if (!user) return;
     try {
       const user = currentUser;
       if (!user) return;
-
-      const { data: existingPartner } = await supabase
-        .from("partners")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
+      const { data: existingPartner } = await supabase.from("partners").select("user_id").eq("user_id", user.id).maybeSingle();
       if (existingPartner) {
-        await supabase.from("partners")
-          .update({ name: partnerName, birthday: partnerBirthday || null })
-          .eq("user_id", user.id);
+        await supabase.from("partners").update({ name: partnerName, birthday: partnerBirthday || null }).eq("user_id", user.id);
       } else {
-        await supabase.from("partners")
-          .insert({ user_id: user.id, name: partnerName, birthday: partnerBirthday || null });
+        await supabase.from("partners").insert({ user_id: user.id, name: partnerName, birthday: partnerBirthday || null });
       }
-
-      const { data: existingAnniversary } = await supabase
-        .from("events")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("category", "anniversary")
-        .maybeSingle();
-
+      const { data: existingAnniversary } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "anniversary").maybeSingle();
       if (existingAnniversary) {
-        await supabase.from("events")
-          .update({ date: partnerAnniversary, name: "Anniversary" })
-          .eq("id", existingAnniversary.id);
+        await supabase.from("events").update({ date: partnerAnniversary, name: "Anniversary" }).eq("id", existingAnniversary.id);
       } else if (partnerAnniversary) {
-        await supabase.from("events").insert({
-          user_id: user.id,
-          name: "Anniversary",
-          date: partnerAnniversary,
-          days_before: 7,
-          emoji: "💍",
-          category: "anniversary",
-          repeat_yearly: true
-        });
+        await supabase.from("events").insert({ user_id: user.id, name: "Anniversary", date: partnerAnniversary, days_before: 7, emoji: "💍", category: "anniversary", repeat_yearly: true });
       }
-
-      const { data: existingBirthday } = await supabase
-        .from("events")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("category", "birthday")
-        .maybeSingle();
-
+      const { data: existingBirthday } = await supabase.from("events").select("id").eq("user_id", user.id).eq("category", "birthday").maybeSingle();
       if (existingBirthday) {
-        await supabase.from("events")
-          .update({ date: partnerBirthday || null, name: `${partnerName}'s Birthday` })
-          .eq("id", existingBirthday.id);
+        await supabase.from("events").update({ date: partnerBirthday || null, name: `${partnerName}'s Birthday` }).eq("id", existingBirthday.id);
       }
-
       setPartnerSaved(true);
       setTimeout(() => setPartnerSaved(false), 2000);
-
-    } catch (err) {
-      console.error("savePartnerData error:", err);
-    }
+    } catch (err) { console.error("savePartnerData error:", err); }
   }
 
   function handleRemeasureComplete() {
@@ -215,8 +109,7 @@ if (!user) return;
   }
 
   async function handleDeleteAccount() {
-    setDeleteLoading(true);
-    setDeleteError("");
+    setDeleteLoading(true); setDeleteError("");
     try {
       const user = currentUser;
       if (!user) throw new Error("Not logged in");
@@ -240,10 +133,7 @@ if (!user) return;
     }
   }
 
-  // Berekeningen voor hermeting framing
-  const daysSince = lastAssessment
-    ? Math.floor((new Date() - new Date(lastAssessment.created_at)) / (1000 * 60 * 60 * 24))
-    : 60;
+  const daysSince = lastAssessment ? Math.floor((new Date() - new Date(lastAssessment.created_at)) / (1000 * 60 * 60 * 24)) : 60;
   const tipsReceived = Math.min(daysSince, 60);
 
   if (showRemeasure) {
@@ -256,30 +146,21 @@ if (!user) return;
       {/* --- Notifications --- */}
       <div style={css.sectionTitle}>How to notify me</div>
       <div style={css.card}>
-        {/* Email reminders toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div style={{ fontSize: 14, color: T.text }}>📧 Email reminders</div>
             <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Reliable — works on all devices</div>
           </div>
-          <div
-            onClick={() => setNotifyEmail((v) => !v)}
-            style={{ width: 44, height: 24, borderRadius: 12, background: notifyEmail ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}
-          >
+          <div onClick={() => setNotifyEmail((v) => !v)} style={{ width: 44, height: 24, borderRadius: 12, background: notifyEmail ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}>
             <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: notifyEmail ? 23 : 3, transition: "left 0.2s" }} />
           </div>
         </div>
-
-        {/* Daily tip email toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
           <div>
             <div style={{ fontSize: 14, color: T.text }}>💡 Daily tip by email</div>
             <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Receive your personalised tip every morning</div>
           </div>
-          <div
-            onClick={() => setNotifyTipEmail((v) => !v)}
-            style={{ width: 44, height: 24, borderRadius: 12, background: notifyTipEmail ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}
-          >
+          <div onClick={() => setNotifyTipEmail((v) => !v)} style={{ width: 44, height: 24, borderRadius: 12, background: notifyTipEmail ? T.accent : T.border, position: "relative", cursor: "pointer", flexShrink: 0 }}>
             <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: notifyTipEmail ? 23 : 3, transition: "left 0.2s" }} />
           </div>
         </div>
@@ -300,13 +181,7 @@ if (!user) return;
         <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>Day</label>
         <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
           {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => (
-            <button
-              key={d}
-              onClick={() => setNotifyDay(d)}
-              style={{ flex: 1, minWidth: 36, background: notifyDay === d ? T.accent : T.accentSoft, color: notifyDay === d ? "#0d0d0d" : T.text, border: `1px solid ${notifyDay === d ? T.accent : T.border}`, borderRadius: 8, padding: "8px 4px", fontSize: 11, fontWeight: "bold", cursor: "pointer", fontFamily: "Georgia, serif" }}
-            >
-              {d}
-            </button>
+            <button key={d} onClick={() => setNotifyDay(d)} style={{ flex: 1, minWidth: 36, background: notifyDay === d ? T.accent : T.accentSoft, color: notifyDay === d ? "#0d0d0d" : T.text, border: `1px solid ${notifyDay === d ? T.accent : T.border}`, borderRadius: 8, padding: "8px 4px", fontSize: 11, fontWeight: "bold", cursor: "pointer", fontFamily: "Georgia, serif" }}>{d}</button>
           ))}
         </div>
         <label style={{ fontSize: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }}>Time</label>
@@ -338,15 +213,11 @@ if (!user) return;
           <div style={css.sectionTitle}>See how much you've grown</div>
           <div style={{ ...css.card, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
-            <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>
-              Ready to measure your growth?
-            </div>
+            <div style={{ fontSize: 15, fontWeight: "bold", marginBottom: 6 }}>Ready to measure your growth?</div>
             <div style={{ fontSize: 13, color: T.muted, marginBottom: 16, lineHeight: 1.6 }}>
               You took your first assessment {daysSince} days ago. Since then you've received {tipsReceived} daily tips focused on your most challenging areas.
             </div>
-            <button style={css.btn} onClick={() => setShowRemeasure(true)}>
-              Measure my growth →
-            </button>
+            <button style={css.btn} onClick={() => setShowRemeasure(true)}>Measure my growth →</button>
           </div>
         </div>
       )}
@@ -361,10 +232,7 @@ if (!user) return;
               Your assessment has been updated. Keep showing up — your tips will now reflect your current level.
             </div>
             {!isPremium && (
-              <button
-                onClick={onUpgrade}
-                style={{ ...css.btn, width: "auto", padding: "10px 28px", fontSize: 13 }}
-              >
+              <button onClick={onUpgrade} style={{ ...css.btn, width: "auto", padding: "10px 28px", fontSize: 13 }}>
                 Upgrade to see your growth per category →
               </button>
             )}
@@ -375,24 +243,30 @@ if (!user) return;
       {/* --- Legal --- */}
       <div style={{ ...css.sectionTitle, marginTop: 24 }}>Legal</div>
       <div style={css.card}>
-        {[
-          { label: "📄 Terms of Use", sub: "Your rights and responsibilities", url: "https://goddessalert.com/terms.html" },
-          { label: "🔒 Privacy Policy", sub: "How we handle your data", url: "https://goddessalert.com/privacy.html" }
-        ].map((item, i) => (
-          
-            key={i}
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 14, marginBottom: 14, borderBottom: `1px solid ${T.border}`, textDecoration: "none" }}
-          >
-            <div>
-              <div style={{ fontSize: 14, color: T.text }}>{item.label}</div>
-              <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{item.sub}</div>
-            </div>
-            <div style={{ fontSize: 16, color: T.muted }}>›</div>
-          </a>
-        ))}
+        <a
+          href="https://goddessalert.com/terms.html"
+          target="_blank"
+          rel="noreferrer"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 14, marginBottom: 14, borderBottom: `1px solid ${T.border}`, textDecoration: "none" }}
+        >
+          <div>
+            <div style={{ fontSize: 14, color: T.text }}>📄 Terms of Use</div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>Your rights and responsibilities</div>
+          </div>
+          <div style={{ fontSize: 16, color: T.muted }}>›</div>
+        </a>
+        <a
+          href="https://goddessalert.com/privacy.html"
+          target="_blank"
+          rel="noreferrer"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 14, marginBottom: 14, borderBottom: `1px solid ${T.border}`, textDecoration: "none" }}
+        >
+          <div>
+            <div style={{ fontSize: 14, color: T.text }}>🔒 Privacy Policy</div>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>How we handle your data</div>
+          </div>
+          <div style={{ fontSize: 16, color: T.muted }}>›</div>
+        </a>
         <div onClick={() => setShowDeleteModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
           <div>
             <div style={{ fontSize: 14, color: T.red }}>🗑️ Delete my account</div>
@@ -424,11 +298,7 @@ if (!user) return;
                 {deleteError}
               </div>
             )}
-            <button
-              style={{ ...css.btnDanger, opacity: deleteLoading ? 0.6 : 1, marginBottom: 10 }}
-              onClick={handleDeleteAccount}
-              disabled={deleteLoading}
-            >
+            <button style={{ ...css.btnDanger, opacity: deleteLoading ? 0.6 : 1, marginBottom: 10 }} onClick={handleDeleteAccount} disabled={deleteLoading}>
               {deleteLoading ? "Deleting..." : "Yes, delete everything"}
             </button>
             <button style={css.btnGhost} onClick={() => !deleteLoading && setShowDeleteModal(false)} disabled={deleteLoading}>
