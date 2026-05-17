@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { T, css } from "../theme";
+import FirstAidKit from "./FirstAidKit";
 
 function daysUntil(dateStr) {
   const today = new Date();
@@ -29,6 +30,8 @@ export default function HomeTab({
   rateTip,
   setScoreVersion,
   isPremium,
+  showFirstAidKit,
+  setShowFirstAidKit,
 }) {
   const currentTip = tips.length > 0 ? tips[tipIndex % tips.length] : null;
 
@@ -308,6 +311,9 @@ useEffect(() => {
           </div>
         </div>
       )}
+
+   {/* ── First Aid Kit ── */}
+      <FirstAidKit showFirstAidKit={showFirstAidKit} setShowFirstAidKit={setShowFirstAidKit} />
 
     </div>
   );
