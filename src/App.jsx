@@ -295,6 +295,7 @@ function MainApp({ partnerData }) {
   const [tips, setTips] = useState([]);
   const [pendingReactionId, setPendingReactionId] = useState(null);
   const [nudgeMessage, setNudgeMessage] = useState(null);
+  const [showFirstAidKit, setShowFirstAidKit] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -748,29 +749,31 @@ function MainApp({ partnerData }) {
 
       <SubscriptionBanner subscription={subscription} onUpgrade={handleUpgrade} />
 
-      {tab === "home" && (
-        <ErrorBoundary>
-          <HomeTab
-            score={score}
-            setScore={setScore}
-            weeklyRating={weeklyRating}
-            setWeeklyRating={setWeeklyRating}
-            gestureDone={gestureDone}
-            setGestureDone={setGestureDone}
-            showRatingThanks={showRatingThanks}
-            setShowRatingThanks={setShowRatingThanks}
-            gestureRating={gestureRating}
-            setGestureRating={setGestureRating}
-            tips={tips}
-            tipIndex={tipIndex}
-            setTipIndex={setTipIndex}
-            events={events}
-            rateTip={rateTip}
-            setScoreVersion={setScoreVersion}
-            isPremium={isPremium()}
-          />
-        </ErrorBoundary>
-      )}
+     {tab === "home" && (
+  <ErrorBoundary>
+    <HomeTab
+      score={score}
+      setScore={setScore}
+      weeklyRating={weeklyRating}
+      setWeeklyRating={setWeeklyRating}
+      gestureDone={gestureDone}
+      setGestureDone={setGestureDone}
+      showRatingThanks={showRatingThanks}
+      setShowRatingThanks={setShowRatingThanks}
+      gestureRating={gestureRating}
+      setGestureRating={setGestureRating}
+      tips={tips}
+      tipIndex={tipIndex}
+      setTipIndex={setTipIndex}
+      events={events}
+      rateTip={rateTip}
+      setScoreVersion={setScoreVersion}
+      isPremium={isPremium()}
+      showFirstAidKit={showFirstAidKit}
+      setShowFirstAidKit={setShowFirstAidKit}
+    />
+  </ErrorBoundary>
+)}
 
       {tab === "events" && (
         <ErrorBoundary>
