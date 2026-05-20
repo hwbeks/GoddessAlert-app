@@ -277,6 +277,9 @@ export default function FirstAidKit({ showFirstAidKit, setShowFirstAidKit }) {
 
       <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 20, marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: T.accent, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>The four patterns</div>
+        <div style={{ fontSize: 13, color: T.text, lineHeight: 1.7, marginBottom: 16 }}>
+        These patterns can appear in almost every long-term relationship — yours, hers, everyone's. Reading them isn't about diagnosing her. It's about recognizing what's happening between you, so you can step out of it.
+        </div>
         {topics.filter(t => t.category === "pattern").map((t, i) => (
           <div
             key={i}
